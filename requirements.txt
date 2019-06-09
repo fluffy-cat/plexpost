@@ -1,0 +1,4 @@
+pytest
+transmissionrpc
+mockito
+requests
