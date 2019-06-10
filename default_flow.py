@@ -1,16 +1,15 @@
 import os
 
 import requests
-import transmissionrpc as transmission
 
 
 class DefaultPostProcessor:
-    def __init__(self, url='localhost', port=9091, username='', password='',
+    def __init__(self, transmission,
                  assistant_url='localhost', assistant_token='', htpc_switch='switch'):
         self.htpc_switch = htpc_switch
         self.assistant_token = assistant_token
         self.assistant_url = assistant_url
-        self.tc = transmission.Client(address=url, port=port, user=username, password=password)
+        self.transmission = transmission
 
     def run(self):
         torrents = self.get_completed_torrents()
@@ -20,7 +19,7 @@ class DefaultPostProcessor:
 
     def remove_torrents_from_client(self, torrents):
         for t in torrents:
-            self.tc.remove_torrent(t.id)
+            self.transmission.remove_torrent(t.id)
 
     def cleanup_torrent_data(self, torrents):
         self.cleanup_files(torrents)
@@ -45,7 +44,7 @@ class DefaultPostProcessor:
                       headers={'Authorization': 'Bearer ' + self.assistant_token})
 
     def get_completed_torrents(self):
-        torrents = [t for t in self.tc.get_torrents() if t.progress >= 100.0]
+        torrents = [t for t in self.transmission.get_torrents() if t.progress >= 100.0]
         return torrents
 
     def list_unique_directories_depth_first(self, torrents):
