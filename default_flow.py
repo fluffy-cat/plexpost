@@ -13,7 +13,8 @@ class DefaultPostProcessor:
 
     def run(self):
         torrents = self.get_completed_torrents()
-        self.wake_htpc()
+        if len(torrents) > 0:
+            self.wake_htpc()
         self.cleanup_torrent_data(torrents)
         self.remove_torrents_from_client(torrents)
 

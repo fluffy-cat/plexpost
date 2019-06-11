@@ -47,6 +47,15 @@ def test_should_wake_htpc_when_torrent_is_complete(transmission, requests):
                                      headers={'Authorization': 'Bearer 123123'})
 
 
+def test_should_not_wake_htpc_when_no_torrents_complete(transmission, requests):
+    transmission.get_torrents.return_value = []
+    proc = default_flow.DefaultPostProcessor(transmission)
+
+    proc.run()
+
+    requests.post.assert_not_called()
+
+
 def test_should_cleanup_top_level_files_when_download_is_complete(transmission):
     prefix = 'tmp/cleanup_test'
     top_level_file = 'top_level.txt'
