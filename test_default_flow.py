@@ -2,6 +2,7 @@ import errno
 import os
 from unittest.mock import Mock, call
 
+import pysftp
 import pytest
 from transmissionrpc import Torrent
 
@@ -20,78 +21,83 @@ def transmission():
     return Mock()
 
 
-def test_should_remove_torrent_when_they_are_completed(transmission):
+@pytest.fixture
+def completed_torrents(transmission):
+    return transmission.get_torrents
+
+
+@pytest.fixture
+def automator(transmission):
+    return default_flow.DefaultPostProcessor(transmission, sftpclient=Mock())
+
+
+@pytest.fixture
+def remote_base_dir():
+    return 'root'
+
+
+@pytest.fixture
+def sftpclient(sftpserver, remote_base_dir):
+    cnopts = pysftp.CnOpts()
+    cnopts.hostkeys = None
+    with sftpserver.serve_content({remote_base_dir: {'.keep': ''}}):
+        with pysftp.Connection(sftpserver.host, port=sftpserver.port, username='user', cnopts=cnopts) as sftpclient:
+            yield sftpclient
+
+
+def test_should_remove_torrent_when_they_are_completed(automator, transmission):
     torrents = [Torrent(None, {'id': 1, 'sizeWhenDone': 1, 'leftUntilDone': 0}),
                 Torrent(None, {'id': 2, 'sizeWhenDone': 1, 'leftUntilDone': 1}),
                 Torrent(None, {'id': 3, 'sizeWhenDone': 2, 'leftUntilDone': 0})]
     transmission.get_torrents.return_value = torrents
-    proc = default_flow.DefaultPostProcessor(transmission)
 
-    proc.run()
+    automator.run()
 
     transmission.remove_torrent.assert_has_calls([call(1), call(3)], any_order=True)
 
 
-def test_should_wake_htpc_when_torrent_is_complete(transmission, requests):
+def test_should_wake_htpc_when_torrent_is_complete(completed_torrents, automator, requests):
     torrents = [Torrent(None, {'id': 1, 'sizeWhenDone': 1, 'leftUntilDone': 0})]
-    transmission.get_torrents.return_value = torrents
-    proc = default_flow.DefaultPostProcessor(transmission,
-                                             assistant_url='127.0.0.1',
-                                             assistant_token='123123',
-                                             htpc_switch='htpc')
+    completed_torrents.return_value = torrents
+    automator.assistant_url = '127.0.0.1'
+    automator.assistant_token = '123123'
+    automator.htpc_switch = 'htpc'
 
-    proc.run()
+    automator.run()
 
     requests.post.assert_called_with('http://127.0.0.1:8123/api/services/switch/turn_on',
                                      json={'entity_id': 'switch.htpc'},
                                      headers={'Authorization': 'Bearer 123123'})
 
 
-def test_should_not_wake_htpc_when_no_torrents_complete(transmission, requests):
-    transmission.get_torrents.return_value = []
-    proc = default_flow.DefaultPostProcessor(transmission)
+def test_should_not_wake_htpc_when_no_torrents_complete(completed_torrents, automator, requests):
+    completed_torrents.return_value = []
 
-    proc.run()
+    automator.run()
 
     requests.post.assert_not_called()
 
 
-def test_should_cleanup_top_level_files_when_download_is_complete(transmission):
-    prefix = 'tmp/cleanup_test'
+def test_should_cleanup_top_level_files_when_download_is_complete(completed_torrents, automator):
+    prefix = 'tmp/cleanup_top_level_files_when_download_is_complete'
     top_level_file = 'top_level.txt'
-    touch(prefix, top_level_file)
-    tor = Mock()
-    tor.progress = 100
-    tor.id = 1
-    tor.downloadDir = prefix
-    tor.files.return_value = {
-        0: {'selected': True, 'priority': 'normal', 'size': 1, 'name': top_level_file,
-            'completed': 1}}
-    transmission.get_torrents.return_value = [tor]
+    tor = create_completed_torrent(prefix, [top_level_file])
+    completed_torrents.return_value = [tor]
 
-    default_flow.DefaultPostProcessor(transmission).run()
+    automator.run()
 
     assert os.path.isdir(prefix)
     assert not os.path.isfile(prefix + '/' + top_level_file)
 
 
-def test_should_cleanup_directory_when_download_is_complete(transmission):
-    prefix = 'tmp/cleanup_dir_test'
+def test_should_cleanup_directory_when_download_is_complete(completed_torrents, automator):
+    prefix = 'tmp/cleanup_directory_when_download_is_complete'
     file1 = 'dir1/file'
     file2 = 'dir1/dir2/file'
-    tor = Mock()
-    tor.progress = 100
-    tor.id = 1
-    tor.downloadDir = prefix
-    tor.files.return_value = {
-        0: {'selected': True, 'priority': 'normal', 'size': 1, 'name': touch(prefix, file1),
-            'completed': 1},
-        1: {'selected': True, 'priority': 'normal', 'size': 1, 'name': touch(prefix, file2),
-            'completed': 1}
-    }
-    transmission.get_torrents.return_value = [tor]
+    tor = create_completed_torrent(prefix, [file1, file2])
+    completed_torrents.return_value = [tor]
 
-    default_flow.DefaultPostProcessor(transmission).run()
+    automator.run()
 
     assert os.path.isdir(prefix)
     assert not os.path.isfile(prefix + '/' + file1)
@@ -100,24 +106,65 @@ def test_should_cleanup_directory_when_download_is_complete(transmission):
     assert not os.path.isdir(prefix + '/dir1/dir2')
 
 
-def test_should_only_cleanup_empty_directories(transmission):
-    prefix = 'tmp/cleanup_empty_dir_test'
+def test_should_only_cleanup_empty_directories(completed_torrents, automator):
+    prefix = 'tmp/only_cleanup_empty_directories'
     torrent_file = 'dir1/dir2/torrent_file'
+    external_file = 'dir1/external_file'
+    touch(prefix, external_file)
+    tor = create_completed_torrent(prefix, [torrent_file])
+    completed_torrents.return_value = [tor]
+
+    automator.run()
+
+    assert os.path.isfile(prefix + '/' + external_file)
+    assert not os.path.isdir(prefix + '/dir1/dir2')
+
+
+def test_should_copy_top_level_files_to_htpc(transmission, sftpserver, sftpclient, remote_base_dir):
+    prefix = 'tmp/copy_top_level_files_to_htpc'
+    single_file = 'single_file'
+    tor = create_completed_torrent(prefix, [single_file])
+    transmission.get_torrents.return_value = [tor]
+    cnopts = pysftp.CnOpts()
+    cnopts.hostkeys = None
+    with pysftp.Connection(sftpserver.host, port=sftpserver.port, username='user', cnopts=cnopts) as sftp:
+        proc = default_flow.DefaultPostProcessor(transmission,
+                                                 sftpclient=sftp, sftp_remote_dir='/' + remote_base_dir)
+        proc.run()
+
+    assert sftpclient.exists('/' + remote_base_dir + '/' + single_file)  # pysftp isfile doesnt work with mock
+
+
+def test_should_copy_files_in_directories_to_htpc(transmission, sftpserver, sftpclient, remote_base_dir):
+    prefix = 'tmp/copy_files_in_directories_to_htpc'
+    nested_file = 'dir1/dir2/nested_file'
+    tor = create_completed_torrent(prefix, [nested_file])
+    transmission.get_torrents.return_value = [tor]
+    cnopts = pysftp.CnOpts()
+    cnopts.hostkeys = None
+    with pysftp.Connection(sftpserver.host, port=sftpserver.port, username='user', cnopts=cnopts) as sftp:
+        proc = default_flow.DefaultPostProcessor(transmission,
+                                                 sftpclient=sftp, sftp_remote_dir='/' + remote_base_dir)
+        proc.run()
+
+    assert sftpclient.isdir('/' + remote_base_dir + '/dir1/dir2')
+    assert sftpclient.exists('/' + remote_base_dir + '/' + nested_file)  # pysftp isfile doesnt work with mock
+
+
+def create_completed_torrent(prefix, files=[]):
     tor = Mock()
     tor.progress = 100
     tor.id = 1
     tor.downloadDir = prefix
-    tor.files.return_value = {
-        0: {'selected': True, 'priority': 'normal', 'size': 1, 'name': touch(prefix, torrent_file),
-            'completed': 1}}
-    external_file = 'dir1/external_file'
-    touch(prefix, external_file)
-    transmission.get_torrents.return_value = [tor]
+    data_files = {}
+    for idx, f in enumerate(files):
+        data_files[idx] = create_download_file(prefix, f)
+    tor.files.return_value = data_files
+    return tor
 
-    default_flow.DefaultPostProcessor(transmission).run()
 
-    assert os.path.isfile(prefix + '/' + external_file)
-    assert not os.path.isdir(prefix + '/dir1/dir2')
+def create_download_file(prefix, filename):
+    return {'selected': True, 'priority': 'normal', 'size': 1, 'name': touch(prefix, filename), 'completed': 1}
 
 
 def touch(prefix, file):

@@ -1,20 +1,27 @@
 import os
 
+import pysftp
 import requests
 
 
 class DefaultPostProcessor:
     def __init__(self, transmission,
-                 assistant_url='localhost', assistant_token='', htpc_switch='switch'):
+                 assistant_url='localhost', assistant_token='', htpc_switch='switch',
+                 sftpclient=None, sftp_remote_dir='/'):
         self.htpc_switch = htpc_switch
         self.assistant_token = assistant_token
         self.assistant_url = assistant_url
         self.transmission = transmission
+        cnopts = pysftp.CnOpts()
+        cnopts.hostkeys = None
+        self.sftpclient = sftpclient
+        self.sftpclient.chdir(sftp_remote_dir)
 
     def run(self):
         torrents = self.get_completed_torrents()
         if len(torrents) > 0:
             self.wake_htpc()
+        self.transfer_to_htpc(torrents)
         self.cleanup_torrent_data(torrents)
         self.remove_torrents_from_client(torrents)
 
@@ -57,3 +64,12 @@ class DefaultPostProcessor:
                     dirs.add(dirname)
         depth_first_dirs = sorted(list(dirs), reverse=True)
         return depth_first_dirs
+
+    def transfer_to_htpc(self, torrents):
+        for t in torrents:
+            for f in t.files().values():
+                filename = f['name']
+                remote_dir = os.path.split(filename)[0]
+                if len(remote_dir) > 0:
+                    self.sftpclient.makedirs(remote_dir)
+                self.sftpclient.put(t.downloadDir + '/' + filename, filename)
