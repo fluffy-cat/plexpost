@@ -127,7 +127,7 @@ def test_should_copy_files_in_directories_to_htpc(completed_torrents, automator,
     assert sftpclient.isfile(remote_base_dir + '/' + nested_file)
 
 
-def completed_torrent_with_data_files(prefix, files=[]):
+def completed_torrent_with_data_files(prefix, files):
     tor = Mock()
     tor.progress = 100
     tor.id = 1
