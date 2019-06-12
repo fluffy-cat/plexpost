@@ -1,6 +1,5 @@
 import os
 
-import pysftp
 import requests
 
 
@@ -12,8 +11,6 @@ class DefaultPostProcessor:
         self.assistant_token = assistant_token
         self.assistant_url = assistant_url
         self.transmission = transmission
-        cnopts = pysftp.CnOpts()
-        cnopts.hostkeys = None
         self.sftpclient = sftpclient
         self.sftpclient.chdir(sftp_remote_dir)
 
