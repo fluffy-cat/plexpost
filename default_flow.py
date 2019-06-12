@@ -56,11 +56,18 @@ class DefaultPostProcessor:
         dirs = set()
         for t in torrents:
             for f in t.files().values():
-                dirname = os.path.dirname(t.downloadDir + '/' + f['name'])
-                if dirname != t.downloadDir:
-                    dirs.add(dirname)
+                dirname = os.path.dirname(f['name'])
+                paths = [t.downloadDir + '/' + p for p in self.path_traversals(dirname)]
+                dirs.update(paths)
         depth_first_dirs = sorted(list(dirs), reverse=True)
         return depth_first_dirs
+
+    def path_traversals(self, path):
+        dirs = [d for d in path.split('/') if len(d) > 0]
+        paths = []
+        for idx in range(0, len(dirs)):
+            paths.append('/'.join(dirs[0:idx + 1]))  # List all paths with at least 1 directory
+        return paths
 
     def transfer_to_htpc(self, torrents):
         for t in torrents:

@@ -88,15 +88,15 @@ def test_should_cleanup_top_level_files_when_download_is_complete(completed_torr
 
 def test_should_cleanup_directory_when_download_is_complete(completed_torrents, automator):
     prefix = 'tmp/cleanup_directory_when_download_is_complete'
-    file1 = 'dir1/file'
-    file2 = 'dir1/dir2/file'
+    file1 = 'dir1/dir2/file'
+    file2 = 'dir1/dir2/dir3/file'
     completed_torrents.return_value = [completed_torrent_with_data_files(prefix, [file1, file2])]
     automator.run()
     assert os.path.isdir(prefix)
-    assert not os.path.isfile(prefix + '/' + file1)
-    assert not os.path.isdir(prefix + '/dir1')
-    assert not os.path.isfile(prefix + '/' + file2)
-    assert not os.path.isdir(prefix + '/dir1/dir2')
+    assert not os.path.lexists(prefix + '/' + file1)
+    assert not os.path.lexists(prefix + '/' + file2)
+    assert not os.path.lexists(prefix + '/dir1/dir2')
+    assert not os.path.lexists(prefix + '/dir1')
 
 
 def test_should_only_cleanup_empty_directories(completed_torrents, automator):
