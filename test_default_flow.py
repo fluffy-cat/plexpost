@@ -22,16 +22,24 @@ def transmission():
 
 
 @pytest.fixture
+def download_dir():
+    return '/'
+
+
+@pytest.fixture
 def completed_torrents(transmission):
     return transmission.get_torrents
 
 
 @pytest.fixture
-def automator(transmission, sftpserver, remote_base_dir):
+def automator(transmission, sftpserver, remote_base_dir, download_dir):
     cnopts = pysftp.CnOpts()
     cnopts.hostkeys = None
     with pysftp.Connection(sftpserver.host, port=sftpserver.port, username='user', cnopts=cnopts) as sftp:
-        yield default_flow.DefaultPostProcessor(transmission, sftpclient=sftp, sftp_remote_dir=remote_base_dir)
+        yield (default_flow.DefaultPostProcessor(transmission,
+                                                 sftpclient=sftp,
+                                                 sftp_remote_dir=remote_base_dir,
+                                                 download_dir=download_dir))
 
 
 @pytest.fixture
@@ -50,17 +58,28 @@ def sftpclient(sftpserver):
         yield sftpclient
 
 
-def test_should_remove_torrent_when_they_are_completed(automator, transmission):
-    torrents = [Torrent(None, {'id': 1, 'sizeWhenDone': 1, 'leftUntilDone': 0}),
-                Torrent(None, {'id': 2, 'sizeWhenDone': 1, 'leftUntilDone': 1}),
-                Torrent(None, {'id': 3, 'sizeWhenDone': 2, 'leftUntilDone': 0})]
+def test_should_only_remove_torrents_when_they_are_completed(automator, transmission, download_dir):
+    torrents = [Torrent(None, {'id': 1, 'sizeWhenDone': 1, 'leftUntilDone': 0, 'downloadDir': download_dir}),
+                Torrent(None, {'id': 2, 'sizeWhenDone': 1, 'leftUntilDone': 1, 'downloadDir': download_dir}),
+                Torrent(None, {'id': 3, 'sizeWhenDone': 2, 'leftUntilDone': 0, 'downloadDir': download_dir})]
     transmission.get_torrents.return_value = torrents
     automator.run()
     transmission.remove_torrent.assert_has_calls([call(1), call(3)], any_order=True)
 
 
-def test_should_wake_htpc_when_torrent_is_complete(completed_torrents, automator, requests):
-    torrents = [Torrent(None, {'id': 1, 'sizeWhenDone': 1, 'leftUntilDone': 0})]
+@pytest.mark.parametrize('download_dir', ['/downloads'])
+def test_should_only_process_uncategorised_torrents_when_they_are_in_the_downloads_folder(automator, transmission,
+                                                                                          download_dir):
+    torrents = [Torrent(None, {'id': 1, 'sizeWhenDone': 1, 'leftUntilDone': 0, 'downloadDir': '/downloads/movies'}),
+                Torrent(None, {'id': 2, 'sizeWhenDone': 1, 'leftUntilDone': 0, 'downloadDir': '/downloads'})]
+    transmission.get_torrents.return_value = torrents
+    automator.download_dir = '/downloads'
+    automator.run()
+    transmission.remove_torrent.assert_called_once_with(2)
+
+
+def test_should_wake_htpc_when_torrent_is_complete(completed_torrents, automator, requests, download_dir):
+    torrents = [Torrent(None, {'id': 1, 'sizeWhenDone': 1, 'leftUntilDone': 0, 'downloadDir': download_dir})]
     completed_torrents.return_value = torrents
     automator.assistant_url = '127.0.0.1'
     automator.assistant_token = '123123'
@@ -77,51 +96,52 @@ def test_should_not_wake_htpc_when_no_torrents_complete(completed_torrents, auto
     requests.post.assert_not_called()
 
 
-def test_should_cleanup_top_level_files_when_download_is_complete(completed_torrents, automator):
-    prefix = 'tmp/cleanup_top_level_files_when_download_is_complete'
+@pytest.mark.parametrize('download_dir', ['tmp/cleanup_top_level_files_when_download_is_complete'])
+def test_should_cleanup_top_level_files_when_download_is_complete(completed_torrents, automator, download_dir):
     top_level_file = 'top_level.txt'
-    completed_torrents.return_value = [completed_torrent_with_data_files(prefix, [top_level_file])]
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [top_level_file])]
     automator.run()
-    assert os.path.isdir(prefix)
-    assert not os.path.isfile(prefix + '/' + top_level_file)
+    assert os.path.isdir(download_dir)
+    assert not os.path.isfile(download_dir + '/' + top_level_file)
 
 
-def test_should_cleanup_directory_when_download_is_complete(completed_torrents, automator):
-    prefix = 'tmp/cleanup_directory_when_download_is_complete'
+@pytest.mark.parametrize('download_dir', ['tmp/cleanup_directory_when_download_is_complete'])
+def test_should_cleanup_directory_when_download_is_complete(completed_torrents, automator, download_dir):
     file1 = 'dir1/dir2/file'
     file2 = 'dir1/dir2/dir3/file'
-    completed_torrents.return_value = [completed_torrent_with_data_files(prefix, [file1, file2])]
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [file1, file2])]
     automator.run()
-    assert os.path.isdir(prefix)
-    assert not os.path.lexists(prefix + '/' + file1)
-    assert not os.path.lexists(prefix + '/' + file2)
-    assert not os.path.lexists(prefix + '/dir1/dir2')
-    assert not os.path.lexists(prefix + '/dir1')
+    assert os.path.isdir(download_dir)
+    assert not os.path.lexists(download_dir + '/' + file1)
+    assert not os.path.lexists(download_dir + '/' + file2)
+    assert not os.path.lexists(download_dir + '/dir1/dir2')
+    assert not os.path.lexists(download_dir + '/dir1')
 
 
-def test_should_only_cleanup_empty_directories(completed_torrents, automator):
-    prefix = 'tmp/only_cleanup_empty_directories'
+@pytest.mark.parametrize('download_dir', ['tmp/only_cleanup_empty_directories'])
+def test_should_only_cleanup_empty_directories(completed_torrents, automator, download_dir):
     torrent_file = 'dir1/dir2/torrent_file'
     external_file = 'dir1/external_file'
-    touch(prefix, external_file)
-    completed_torrents.return_value = [completed_torrent_with_data_files(prefix, [torrent_file])]
+    touch(download_dir, external_file)
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [torrent_file])]
     automator.run()
-    assert os.path.isfile(prefix + '/' + external_file)
-    assert not os.path.isdir(prefix + '/dir1/dir2')
+    assert os.path.isfile(download_dir + '/' + external_file)
+    assert not os.path.isdir(download_dir + '/dir1/dir2')
 
 
-def test_should_copy_top_level_files_to_htpc(completed_torrents, automator, sftpclient, remote_base_dir):
-    prefix = 'tmp/copy_top_level_files_to_htpc'
+@pytest.mark.parametrize('download_dir', ['tmp/copy_top_level_files_to_htpc'])
+def test_should_copy_top_level_files_to_htpc(completed_torrents, automator, sftpclient, remote_base_dir, download_dir):
     single_file = 'single_file'
-    completed_torrents.return_value = [completed_torrent_with_data_files(prefix, [single_file])]
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [single_file])]
     automator.run()
     assert sftpclient.isfile(remote_base_dir + '/' + single_file)
 
 
-def test_should_copy_files_in_directories_to_htpc(completed_torrents, automator, sftpclient, remote_base_dir):
-    prefix = 'tmp/copy_files_in_directories_to_htpc'
+@pytest.mark.parametrize('download_dir', ['tmp/copy_files_in_directories_to_htpc'])
+def test_should_copy_files_in_directories_to_htpc(completed_torrents, automator, sftpclient, remote_base_dir,
+                                                  download_dir):
     nested_file = 'dir1/dir2/nested_file'
-    completed_torrents.return_value = [completed_torrent_with_data_files(prefix, [nested_file])]
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [nested_file])]
     automator.run()
     assert sftpclient.isdir(remote_base_dir + '/dir1/dir2')
     assert sftpclient.isfile(remote_base_dir + '/' + nested_file)

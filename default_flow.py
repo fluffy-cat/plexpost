@@ -45,21 +45,26 @@ def cleanup_torrent_data(torrents):
 class DefaultPostProcessor:
     def __init__(self, transmission,
                  assistant_url='localhost', assistant_token='', htpc_switch='switch',
-                 sftpclient=None, sftp_remote_dir='/'):
+                 sftpclient=None, sftp_remote_dir='/', download_dir='/downloads'):
         self.htpc_switch = htpc_switch
         self.assistant_token = assistant_token
         self.assistant_url = assistant_url
         self.transmission = transmission
         self.sftpclient = sftpclient
         self.sftpclient.chdir(sftp_remote_dir)
+        self.download_dir = download_dir
 
     def run(self):
         torrents = self.get_completed_torrents()
+        torrents = [t for t in torrents if self.is_uncategorised(t)]
         if len(torrents) > 0:
             self.wake_htpc()
         self.transfer_to_htpc(torrents)
         cleanup_torrent_data(torrents)
         self.remove_torrents_from_client(torrents)
+
+    def is_uncategorised(self, torrent):
+        return torrent.downloadDir == self.download_dir
 
     def remove_torrents_from_client(self, torrents):
         for t in torrents:
