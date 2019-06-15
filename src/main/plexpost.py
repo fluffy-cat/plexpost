@@ -5,7 +5,7 @@ import pysftp
 import transmissionrpc
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-import default_flow
+from src.main import default_flow
 
 
 def main():

@@ -6,7 +6,7 @@ import pysftp
 import pytest
 from transmissionrpc import Torrent
 
-import default_flow
+from src.main import default_flow
 
 
 @pytest.fixture(autouse=True)
