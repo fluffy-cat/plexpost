@@ -4,7 +4,8 @@ import hiyapyco
 import pysftp
 import transmissionrpc
 from apscheduler.schedulers.blocking import BlockingScheduler
-from src.main import default_flow
+
+import default_flow
 
 
 def main():

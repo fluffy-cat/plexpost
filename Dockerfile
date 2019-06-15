@@ -8,9 +8,7 @@ RUN apk add --update --no-cache --virtual .build-deps build-base python3-dev lib
   pip install --no-cache-dir -r requirements.lock && \
   apk del .build-deps
 
-# Install plexpost
-COPY src/main .
-COPY default_config.yml .
+COPY *.py default_config.yml ./
 
 VOLUME /config /downloads
 
