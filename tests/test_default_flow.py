@@ -4,9 +4,8 @@ from unittest.mock import Mock, call
 
 import pysftp
 import pytest
-from transmissionrpc import Torrent
-
 from src.main import default_flow
+from transmissionrpc import Torrent
 
 
 @pytest.fixture(autouse=True)

@@ -4,13 +4,12 @@ import hiyapyco
 import pysftp
 import transmissionrpc
 from apscheduler.schedulers.blocking import BlockingScheduler
-
 from src.main import default_flow
 
 
 def main():
     confs = [sys.argv[1], sys.argv[2]]
-    conf = hiyapyco.load(confs, method=hiyapyco.METHOD_MERGE, mergelists=False)
+    conf = hiyapyco.load(confs, method=hiyapyco.METHOD_MERGE, mergelists=False, failonmissingfiles=False)
     transmission = create_transmission(conf['transmission'])
     sftp = create_sftp(conf['sftp'])
     default_processor = default_flow.DefaultPostProcessor(transmission=transmission,
