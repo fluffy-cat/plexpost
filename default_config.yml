@@ -1,0 +1,17 @@
+---
+download_dir: /downloads
+transmission:
+  url: localhost
+  port: 9091
+  username: transmission
+  password: password
+sftp:
+  url: localhost
+  port: 22
+  username: sftp
+  key_path: /root/.ssh/id_rsa
+  remote_dir: /home/user
+home_assistant:
+  url: localhost
+  token: ''
+  htpc_switch: plex_node
