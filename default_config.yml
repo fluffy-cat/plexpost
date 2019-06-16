@@ -1,6 +1,8 @@
 ---
 default_flow:
-  uncategorised_downloads_dir: /downloads
+  download_dir_tag: /downloads
+movies_flow:
+  download_dir_tag: /movies
 transmission:
   url: localhost
   port: 9091

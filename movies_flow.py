@@ -42,7 +42,7 @@ def cleanup_torrent_data(torrents):
     cleanup_empty_dirs(torrents)
 
 
-class DefaultPostProcessor:
+class MoviePostProcessor:
     def __init__(self, transmission,
                  assistant_url='localhost', assistant_token='', htpc_switch='switch',
                  sftp_factory=None, download_dir_tag='/downloads'):
@@ -54,10 +54,10 @@ class DefaultPostProcessor:
         self.download_dir_tag = download_dir_tag
 
     def run(self):
-        print('Looking for uncategorised downloads')
+        print('Looking for movies')
         torrents = self.get_completed_torrents()
-        torrents = [t for t in torrents if self.is_uncategorised(t)]
-        print('Found ' + str(len(torrents)) + ' uncategorised downloads')
+        torrents = [t for t in torrents if self.is_movie(t)]
+        print('Found ' + str(len(torrents)) + ' movies')
         for t in torrents:
             print('  ' + t.name)
         if len(torrents) > 0:
@@ -67,7 +67,7 @@ class DefaultPostProcessor:
         cleanup_torrent_data(torrents)
         self.remove_torrents_from_client(torrents)
 
-    def is_uncategorised(self, torrent):
+    def is_movie(self, torrent):
         return torrent.downloadDir == self.download_dir_tag
 
     def remove_torrents_from_client(self, torrents):
@@ -87,7 +87,7 @@ class DefaultPostProcessor:
         if (len(torrents) == 0):
             return
         with self.sftp_factory.await_connection() as sftp:
-            sftp.chdir('downloads')
+            sftp.chdir('movies')
             for t in torrents:
                 print('Transferring ' + t.name + ' to remote')
                 for f in t.files().values():

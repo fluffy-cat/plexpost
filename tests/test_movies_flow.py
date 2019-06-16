@@ -6,14 +6,14 @@ import pysftp
 import pytest
 from transmissionrpc import Torrent
 
-import default_flow
+import movies_flow
 from sftp_factory import SFTPFactory
 
 
 @pytest.fixture(autouse=True)
 def requests(monkeypatch):
     req = Mock()
-    monkeypatch.setattr(default_flow, 'requests', req)
+    monkeypatch.setattr(movies_flow, 'requests', req)
     return req
 
 
@@ -34,20 +34,20 @@ def completed_torrents(transmission):
 
 @pytest.fixture
 def automator(transmission, sftpserver, remote_base_dir, download_dir):
-    return default_flow.DefaultPostProcessor(transmission,
-                                             sftp_factory=SFTPFactory({'url': sftpserver.host,
-                                                                       'port': sftpserver.port,
-                                                                       'username': 'user',
-                                                                       'key_path': '',
-                                                                       'remote_dir': remote_base_dir}),
-                                             download_dir_tag=download_dir)
+    return movies_flow.MoviePostProcessor(transmission,
+                                          sftp_factory=SFTPFactory({'url': sftpserver.host,
+                                                                    'port': sftpserver.port,
+                                                                    'username': 'user',
+                                                                    'key_path': '',
+                                                                    'remote_dir': remote_base_dir}),
+                                          download_dir_tag=download_dir)
 
 
 @pytest.fixture
 def remote_base_dir(sftpserver):
     base = 'root'
     path = '/' + base
-    with sftpserver.serve_content({base: {'downloads': {'.keep': ''}}}):
+    with sftpserver.serve_content({base: {'movies': {'.keep': ''}}}):
         yield path
 
 
@@ -59,7 +59,7 @@ def sftpclient(sftpserver):
         yield sftpclient
 
 
-def test_should_only_remove_torrents_when_they_are_completed(automator, transmission, download_dir):
+def test_should_only_remove_movies_when_they_are_completed(automator, transmission, download_dir):
     torrents = [create_torrent(1, 0, download_dir),
                 create_torrent(2, 1, download_dir),
                 create_torrent(3, 0, download_dir)]
@@ -69,8 +69,8 @@ def test_should_only_remove_torrents_when_they_are_completed(automator, transmis
 
 
 @pytest.mark.parametrize('download_dir', ['/downloads'])
-def test_should_only_process_uncategorised_torrents_when_they_are_in_the_downloads_folder(automator, transmission,
-                                                                                          download_dir):
+def test_should_only_process_downloads_when_they_are_in_the_movies_folder(automator, transmission,
+                                                                          download_dir):
     torrents = [create_torrent(1, 0, '/downloads/movies'),
                 create_torrent(2, 0, '/downloads')]
     transmission.get_torrents.return_value = torrents
@@ -79,7 +79,7 @@ def test_should_only_process_uncategorised_torrents_when_they_are_in_the_downloa
     transmission.remove_torrent.assert_called_once_with(2)
 
 
-def test_should_wake_htpc_when_torrent_is_complete(completed_torrents, automator, requests, download_dir):
+def test_should_wake_htpc_when_movie_is_complete(completed_torrents, automator, requests, download_dir):
     torrents = [create_torrent(1, 0, download_dir)]
     completed_torrents.return_value = torrents
     automator.assistant_url = '127.0.0.1'
@@ -91,14 +91,14 @@ def test_should_wake_htpc_when_torrent_is_complete(completed_torrents, automator
                                      headers={'Authorization': 'Bearer 123123'})
 
 
-def test_should_not_wake_htpc_when_no_torrents_complete(completed_torrents, automator, requests):
+def test_should_not_wake_htpc_when_no_movies_complete(completed_torrents, automator, requests):
     completed_torrents.return_value = []
     automator.run()
     requests.post.assert_not_called()
 
 
 @pytest.mark.parametrize('download_dir', ['tmp/cleanup_top_level_files_when_download_is_complete'])
-def test_should_cleanup_top_level_files_when_download_is_complete(completed_torrents, automator, download_dir):
+def test_should_cleanup_top_level_files_when_movie_is_complete(completed_torrents, automator, download_dir):
     top_level_file = 'top_level.txt'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [top_level_file])]
     automator.run()
@@ -107,7 +107,7 @@ def test_should_cleanup_top_level_files_when_download_is_complete(completed_torr
 
 
 @pytest.mark.parametrize('download_dir', ['tmp/cleanup_directory_when_download_is_complete'])
-def test_should_cleanup_directory_when_download_is_complete(completed_torrents, automator, download_dir):
+def test_should_cleanup_directory_when_movie_is_complete(completed_torrents, automator, download_dir):
     file1 = 'dir1/dir2/file'
     file2 = 'dir1/dir2/dir3/file'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [file1, file2])]
@@ -135,7 +135,7 @@ def test_should_copy_top_level_files_to_htpc(completed_torrents, automator, sftp
     single_file = 'single_file'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [single_file])]
     automator.run()
-    assert sftpclient.isfile(remote_base_dir + '/downloads/' + single_file)
+    assert sftpclient.isfile(remote_base_dir + '/movies/' + single_file)
 
 
 @pytest.mark.parametrize('download_dir', ['tmp/copy_files_in_directories_to_htpc'])
@@ -144,8 +144,8 @@ def test_should_copy_files_in_directories_to_htpc(completed_torrents, automator,
     nested_file = 'dir1/dir2/nested_file'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [nested_file])]
     automator.run()
-    assert sftpclient.isdir(remote_base_dir + '/downloads/dir1/dir2')
-    assert sftpclient.isfile(remote_base_dir + '/downloads/' + nested_file)
+    assert sftpclient.isdir(remote_base_dir + '/movies/dir1/dir2')
+    assert sftpclient.isfile(remote_base_dir + '/movies/' + nested_file)
 
 
 def create_torrent(id, size_left, download_dir):
