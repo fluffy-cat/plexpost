@@ -45,26 +45,30 @@ def cleanup_torrent_data(torrents):
 class DefaultPostProcessor:
     def __init__(self, transmission,
                  assistant_url='localhost', assistant_token='', htpc_switch='switch',
-                 sftpclient=None, sftp_remote_dir='/', download_dir='/downloads'):
+                 sftp_factory=None, uncategorised_downloads_dir='/downloads'):
         self.htpc_switch = htpc_switch
         self.assistant_token = assistant_token
         self.assistant_url = assistant_url
         self.transmission = transmission
-        self.sftpclient = sftpclient
-        self.sftpclient.chdir(sftp_remote_dir)
-        self.download_dir = download_dir
+        self.sftp_factory = sftp_factory
+        self.uncategorised_downloads_dir = uncategorised_downloads_dir
 
     def run(self):
+        print('Looking for uncategorised downloads')
         torrents = self.get_completed_torrents()
         torrents = [t for t in torrents if self.is_uncategorised(t)]
+        print('Found ' + str(len(torrents)) + ' uncategorised downloads')
+        for t in torrents:
+            print('  ' + t.name)
         if len(torrents) > 0:
+            print('Waking htpc')
             self.wake_htpc()
         self.transfer_to_htpc(torrents)
         cleanup_torrent_data(torrents)
         self.remove_torrents_from_client(torrents)
 
     def is_uncategorised(self, torrent):
-        return torrent.downloadDir == self.download_dir
+        return torrent.downloadDir == self.uncategorised_downloads_dir
 
     def remove_torrents_from_client(self, torrents):
         for t in torrents:
@@ -81,9 +85,13 @@ class DefaultPostProcessor:
 
     def transfer_to_htpc(self, torrents):
         for t in torrents:
+            print('Transferring ' + t.name + ' to remote')
             for f in t.files().values():
                 filename = f['name']
                 remote_dir = os.path.split(filename)[0]
-                if len(remote_dir) > 0:
-                    self.sftpclient.makedirs(remote_dir)
-                self.sftpclient.put(t.downloadDir + '/' + filename, filename)
+                with self.sftp_factory.await_connection() as sftp:
+                    sftp.chdir('downloads')
+                    if len(remote_dir) > 0:
+                        sftp.makedirs(remote_dir)
+                    sftp.put(t.downloadDir + '/' + filename, filename)
+            print('Completed transferring ' + t.name)

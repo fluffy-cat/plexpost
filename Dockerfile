@@ -6,10 +6,13 @@ WORKDIR /app
 COPY requirements.lock .
 RUN apk add --update --no-cache --virtual .build-deps build-base python3-dev libffi-dev openssl-dev && \
   pip install --no-cache-dir -r requirements.lock && \
-  apk del .build-deps
+  apk del .build-deps && \
+  apk add --no-cache tzdata
 
 COPY *.py default_config.yml ./
 
 VOLUME /config /downloads
+
+ENV PYTHONUNBUFFERED=1
 
 CMD ["/usr/local/bin/python", "plexpost.py", "default_config.yml", "/config/config.yml"]

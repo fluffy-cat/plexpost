@@ -1,5 +1,6 @@
 ---
-download_dir: /downloads
+default_flow:
+  uncategorised_downloads_dir: /downloads
 transmission:
   url: localhost
   port: 9091
