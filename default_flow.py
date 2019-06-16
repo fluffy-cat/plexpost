@@ -84,14 +84,16 @@ class DefaultPostProcessor:
         return torrents
 
     def transfer_to_htpc(self, torrents):
-        for t in torrents:
-            print('Transferring ' + t.name + ' to remote')
-            for f in t.files().values():
-                filename = f['name']
-                remote_dir = os.path.split(filename)[0]
-                with self.sftp_factory.await_connection() as sftp:
-                    sftp.chdir('downloads')
+        if (len(torrents) == 0):
+            return
+        with self.sftp_factory.await_connection() as sftp:
+            sftp.chdir('downloads')
+            for t in torrents:
+                print('Transferring ' + t.name + ' to remote')
+                for f in t.files().values():
+                    filename = f['name']
+                    remote_dir = os.path.split(filename)[0]
                     if len(remote_dir) > 0:
                         sftp.makedirs(remote_dir)
                     sftp.put(t.downloadDir + '/' + filename, filename)
-            print('Completed transferring ' + t.name)
+                print('Completed transferring ' + t.name)
