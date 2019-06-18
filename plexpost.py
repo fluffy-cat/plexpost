@@ -5,7 +5,9 @@ import transmissionrpc
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 import default_flow
+import htpc_switch
 import movies_flow
+import post_processor
 import sftp_factory
 
 
@@ -14,25 +16,23 @@ def main():
     conf = hiyapyco.load(confs, method=hiyapyco.METHOD_MERGE, mergelists=False, failonmissingfiles=False)
     transmission = create_transmission(conf['transmission'])
     sftp = sftp_factory.SFTPFactory(conf['sftp'])
+    switch = create_htpc_switch(conf['home_assistant'])
     scheduler = BlockingScheduler()
-    default_proc = default_flow.DefaultPostProcessor(transmission=transmission,
-                                                     assistant_url=conf['home_assistant']['url'],
-                                                     assistant_token=conf['home_assistant']['token'],
-                                                     htpc_switch=conf['home_assistant']['htpc_switch'],
-                                                     sftp_factory=sftp,
-                                                     download_dir_tag=conf['default_flow']['download_dir_tag'])
-    scheduler.add_job(default_proc.run, 'interval', minutes=1)
-    movie_proc = movies_flow.MoviePostProcessor(transmission=transmission,
-                                                assistant_url=conf['home_assistant']['url'],
-                                                assistant_token=conf['home_assistant']['token'],
-                                                htpc_switch=conf['home_assistant']['htpc_switch'],
-                                                sftp_factory=sftp,
-                                                download_dir_tag=conf['movies_flow']['download_dir_tag'])
-    scheduler.add_job(movie_proc.run, 'interval', minutes=1)
+    create_schedule(scheduler, transmission, switch, sftp, default_flow.DefaultPostProcessor(conf['default_flow']))
+    create_schedule(scheduler, transmission, switch, sftp, movies_flow.MoviePostProcessor(conf['movies_flow']))
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
         pass
+
+
+def create_schedule(scheduler, transmission, htpc_switch, sftp, plugin):
+    proc = post_processor.PostProcessor(transmission, htpc_switch, sftp, plugin)
+    scheduler.add_job(proc.run, 'interval', minutes=1)
+
+
+def create_htpc_switch(conf):
+    return htpc_switch.HTPCSwitch(conf['url'], conf['token'], conf['htpc_switch'])
 
 
 def create_transmission(conf):

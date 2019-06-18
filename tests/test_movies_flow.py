@@ -8,6 +8,7 @@ from transmissionrpc import Torrent
 
 import htpc_switch
 import movies_flow
+import post_processor
 from sftp_factory import SFTPFactory
 
 
@@ -35,14 +36,14 @@ def completed_torrents(transmission):
 
 @pytest.fixture
 def automator(transmission, sftpserver, remote_base_dir, download_dir):
-    return movies_flow.MoviePostProcessor(transmission,
-                                          Mock(),
-                                          sftp_factory=SFTPFactory({'url': sftpserver.host,
-                                                                    'port': sftpserver.port,
-                                                                    'username': 'user',
-                                                                    'key_path': '',
-                                                                    'remote_dir': remote_base_dir}),
-                                          download_dir_tag=download_dir)
+    return post_processor.PostProcessor(transmission,
+                                        Mock(),
+                                        SFTPFactory({'url': sftpserver.host,
+                                                     'port': sftpserver.port,
+                                                     'username': 'user',
+                                                     'key_path': '',
+                                                     'remote_dir': remote_base_dir}),
+                                        movies_flow.MoviePostProcessor({'download_dir_tag': download_dir}))
 
 
 @pytest.fixture

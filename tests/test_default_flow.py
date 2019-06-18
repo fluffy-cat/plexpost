@@ -8,6 +8,7 @@ from transmissionrpc import Torrent
 
 import default_flow
 import htpc_switch
+import post_processor
 from sftp_factory import SFTPFactory
 
 
@@ -35,14 +36,14 @@ def completed_torrents(transmission):
 
 @pytest.fixture
 def automator(transmission, sftpserver, remote_base_dir, download_dir):
-    return default_flow.DefaultPostProcessor(transmission,
-                                             Mock(),
-                                             sftp_factory=SFTPFactory({'url': sftpserver.host,
-                                                                       'port': sftpserver.port,
-                                                                       'username': 'user',
-                                                                       'key_path': '',
-                                                                       'remote_dir': remote_base_dir}),
-                                             download_dir_tag=download_dir)
+    return post_processor.PostProcessor(transmission,
+                                        Mock(),
+                                        SFTPFactory({'url': sftpserver.host,
+                                                     'port': sftpserver.port,
+                                                     'username': 'user',
+                                                     'key_path': '',
+                                                     'remote_dir': remote_base_dir}),
+                                        default_flow.DefaultPostProcessor({'download_dir_tag': download_dir}))
 
 
 @pytest.fixture
@@ -142,6 +143,7 @@ def test_should_copy_top_level_files_to_htpc(completed_torrents, automator, sftp
 def test_should_copy_files_in_directories_to_htpc(completed_torrents, automator, sftpclient, remote_base_dir,
                                                   download_dir):
     nested_file = 'dir1/dir2/nested_file'
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [nested_file])]
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [nested_file])]
     automator.run()
     assert sftpclient.isdir(remote_base_dir + '/downloads/dir1/dir2')
