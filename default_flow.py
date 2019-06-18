@@ -1,7 +1,5 @@
 import os
 
-import requests
-
 
 def path_traversals(path):
     dirs = [d for d in path.split('/') if len(d) > 0]
@@ -43,13 +41,13 @@ def cleanup_torrent_data(torrents):
 
 
 class DefaultPostProcessor:
-    def __init__(self, transmission,
-                 assistant_url='localhost', assistant_token='', htpc_switch='switch',
-                 sftp_factory=None, download_dir_tag='/downloads'):
-        self.htpc_switch = htpc_switch
-        self.assistant_token = assistant_token
-        self.assistant_url = assistant_url
+    def __init__(self,
+                 transmission,
+                 htpc_switch,
+                 sftp_factory,
+                 download_dir_tag='/downloads'):
         self.transmission = transmission
+        self.htpc = htpc_switch
         self.sftp_factory = sftp_factory
         self.download_dir_tag = download_dir_tag
 
@@ -62,7 +60,7 @@ class DefaultPostProcessor:
             print('  ' + t.name)
         if len(torrents) > 0:
             print('Waking htpc')
-            self.wake_htpc()
+            self.htpc.turn_on()
         self.transfer_to_htpc(torrents)
         cleanup_torrent_data(torrents)
         self.remove_torrents_from_client(torrents)
@@ -73,11 +71,6 @@ class DefaultPostProcessor:
     def remove_torrents_from_client(self, torrents):
         for t in torrents:
             self.transmission.remove_torrent(t.id)
-
-    def wake_htpc(self):
-        requests.post('http://' + self.assistant_url + ':8123/api/services/switch/turn_on',
-                      json={'entity_id': 'switch.' + self.htpc_switch},
-                      headers={'Authorization': 'Bearer ' + self.assistant_token})
 
     def get_completed_torrents(self):
         torrents = [t for t in self.transmission.get_torrents() if t.progress >= 100.0]

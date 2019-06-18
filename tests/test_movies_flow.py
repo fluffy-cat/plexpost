@@ -6,6 +6,7 @@ import pysftp
 import pytest
 from transmissionrpc import Torrent
 
+import htpc_switch
 import movies_flow
 from sftp_factory import SFTPFactory
 
@@ -13,7 +14,7 @@ from sftp_factory import SFTPFactory
 @pytest.fixture(autouse=True)
 def requests(monkeypatch):
     req = Mock()
-    monkeypatch.setattr(movies_flow, 'requests', req)
+    monkeypatch.setattr(htpc_switch, 'requests', req)
     return req
 
 
@@ -35,6 +36,7 @@ def completed_torrents(transmission):
 @pytest.fixture
 def automator(transmission, sftpserver, remote_base_dir, download_dir):
     return movies_flow.MoviePostProcessor(transmission,
+                                          Mock(),
                                           sftp_factory=SFTPFactory({'url': sftpserver.host,
                                                                     'port': sftpserver.port,
                                                                     'username': 'user',
@@ -82,9 +84,7 @@ def test_should_only_process_downloads_when_they_are_in_the_movies_folder(automa
 def test_should_wake_htpc_when_movie_is_complete(completed_torrents, automator, requests, download_dir):
     torrents = [create_torrent(1, 0, download_dir)]
     completed_torrents.return_value = torrents
-    automator.assistant_url = '127.0.0.1'
-    automator.assistant_token = '123123'
-    automator.htpc_switch = 'htpc'
+    automator.htpc = htpc_switch.HTPCSwitch('127.0.0.1', '123123', 'htpc')
     automator.run()
     requests.post.assert_called_with('http://127.0.0.1:8123/api/services/switch/turn_on',
                                      json={'entity_id': 'switch.htpc'},

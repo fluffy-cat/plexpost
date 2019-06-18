@@ -7,13 +7,14 @@ import pytest
 from transmissionrpc import Torrent
 
 import default_flow
+import htpc_switch
 from sftp_factory import SFTPFactory
 
 
 @pytest.fixture(autouse=True)
 def requests(monkeypatch):
     req = Mock()
-    monkeypatch.setattr(default_flow, 'requests', req)
+    monkeypatch.setattr(htpc_switch, 'requests', req)
     return req
 
 
@@ -35,6 +36,7 @@ def completed_torrents(transmission):
 @pytest.fixture
 def automator(transmission, sftpserver, remote_base_dir, download_dir):
     return default_flow.DefaultPostProcessor(transmission,
+                                             Mock(),
                                              sftp_factory=SFTPFactory({'url': sftpserver.host,
                                                                        'port': sftpserver.port,
                                                                        'username': 'user',
@@ -82,9 +84,7 @@ def test_should_only_process_uncategorised_torrents_when_they_are_in_the_downloa
 def test_should_wake_htpc_when_torrent_is_complete(completed_torrents, automator, requests, download_dir):
     torrents = [create_torrent(1, 0, download_dir)]
     completed_torrents.return_value = torrents
-    automator.assistant_url = '127.0.0.1'
-    automator.assistant_token = '123123'
-    automator.htpc_switch = 'htpc'
+    automator.htpc = htpc_switch.HTPCSwitch('127.0.0.1', '123123', 'htpc')
     automator.run()
     requests.post.assert_called_with('http://127.0.0.1:8123/api/services/switch/turn_on',
                                      json={'entity_id': 'switch.htpc'},
