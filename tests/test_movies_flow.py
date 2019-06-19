@@ -26,7 +26,7 @@ def transmission():
 
 @pytest.fixture
 def download_dir():
-    return '/'
+    return '/root'
 
 
 @pytest.fixture
@@ -100,7 +100,7 @@ def test_should_not_wake_htpc_when_no_movies_complete(completed_torrents, automa
 
 @pytest.mark.parametrize('download_dir', ['tmp/cleanup_top_level_files_when_download_is_complete'])
 def test_should_cleanup_top_level_files_when_movie_is_complete(completed_torrents, automator, download_dir):
-    top_level_file = 'top_level.txt'
+    top_level_file = 'top_level.avi'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [top_level_file])]
     automator.run()
     assert os.path.isdir(download_dir)
@@ -109,8 +109,8 @@ def test_should_cleanup_top_level_files_when_movie_is_complete(completed_torrent
 
 @pytest.mark.parametrize('download_dir', ['tmp/cleanup_directory_when_download_is_complete'])
 def test_should_cleanup_directory_when_movie_is_complete(completed_torrents, automator, download_dir):
-    file1 = 'dir1/dir2/file'
-    file2 = 'dir1/dir2/dir3/file'
+    file1 = 'dir1/dir2/file.avi'
+    file2 = 'dir1/dir2/dir3/file.avi'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [file1, file2])]
     automator.run()
     assert os.path.isdir(download_dir)
@@ -122,8 +122,8 @@ def test_should_cleanup_directory_when_movie_is_complete(completed_torrents, aut
 
 @pytest.mark.parametrize('download_dir', ['tmp/only_cleanup_empty_directories'])
 def test_should_only_cleanup_empty_directories(completed_torrents, automator, download_dir):
-    torrent_file = 'dir1/dir2/torrent_file'
-    external_file = 'dir1/external_file'
+    torrent_file = 'dir1/dir2/torrent_file.avi'
+    external_file = 'dir1/external_file.avi'
     touch(download_dir, external_file)
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [torrent_file])]
     automator.run()
@@ -133,7 +133,7 @@ def test_should_only_cleanup_empty_directories(completed_torrents, automator, do
 
 @pytest.mark.parametrize('download_dir', ['tmp/copy_top_level_files_to_htpc'])
 def test_should_copy_top_level_files_to_htpc(completed_torrents, automator, sftpclient, remote_base_dir, download_dir):
-    single_file = 'single_file'
+    single_file = 'single_file.avi'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [single_file])]
     automator.run()
     assert sftpclient.isfile(remote_base_dir + '/movies/' + single_file)
@@ -142,11 +142,71 @@ def test_should_copy_top_level_files_to_htpc(completed_torrents, automator, sftp
 @pytest.mark.parametrize('download_dir', ['tmp/copy_files_in_directories_to_htpc'])
 def test_should_copy_files_in_directories_to_htpc(completed_torrents, automator, sftpclient, remote_base_dir,
                                                   download_dir):
-    nested_file = 'dir1/dir2/nested_file'
+    nested_file = 'dir1/dir2/nested_file.avi'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [nested_file])]
     automator.run()
     assert sftpclient.isdir(remote_base_dir + '/movies/dir1/dir2')
     assert sftpclient.isfile(remote_base_dir + '/movies/' + nested_file)
+
+
+def test_should_copy_avi_video(completed_torrents, automator, sftpclient, remote_base_dir, download_dir):
+    avi_file = 'dir/video.avi'
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [avi_file])]
+    automator.run()
+    assert sftpclient.isfile(remote_base_dir + '/movies/' + avi_file)
+
+
+def test_should_copy_mkv_video(completed_torrents, automator, sftpclient, remote_base_dir, download_dir):
+    avi_file = 'dir/video.mkv'
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [avi_file])]
+    automator.run()
+    assert sftpclient.isfile(remote_base_dir + '/movies/' + avi_file)
+
+
+def test_should_copy_mp4_video(completed_torrents, automator, sftpclient, remote_base_dir, download_dir):
+    avi_file = 'dir/video.mp4'
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [avi_file])]
+    automator.run()
+    assert sftpclient.isfile(remote_base_dir + '/movies/' + avi_file)
+
+
+def test_should_not_copy_garbage_files(completed_torrents, automator, sftpclient, remote_base_dir, download_dir):
+    info_file = 'dir/release.nfo'
+    exec_file = 'dir/release.exe'
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [info_file, exec_file])]
+    automator.run()
+    assert not sftpclient.exists(remote_base_dir + '/movies/' + info_file)
+    assert not sftpclient.exists(remote_base_dir + '/movies/' + exec_file)
+
+
+def test_should_copy_only_largest_video_file_when_multiple_are_present(completed_torrents, automator, sftpclient,
+                                                                       remote_base_dir, download_dir):
+    sample_video = 'dir/sample.avi'
+    main_video = 'dir/video.mkv'
+    tor = completed_torrent_with_data_files(download_dir, [sample_video, main_video])
+    files = tor.files()
+    files[0]['size'] = 1
+    files[1]['size'] = 2
+    tor.files.return_value = files
+    completed_torrents.return_value = [tor]
+    automator.run()
+    assert sftpclient.isfile(remote_base_dir + '/movies/' + main_video)
+    assert not sftpclient.exists(remote_base_dir + '/movies/' + sample_video)
+
+
+def test_should_copy_subtitles(completed_torrents, automator, sftpclient, remote_base_dir, download_dir):
+    sub = 'dir/file.sub'
+    idx = 'dir/file.idx'
+    srt = 'dir/dir2/file.srt'
+    smi = 'dir/file.smi'
+    ssa = 'dir/file.ssa'
+    ass = 'dir/file.ass'
+    vtt = 'dir/file.vtt'
+    subtitles = [sub, idx, srt, smi, ssa, ass, vtt]
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, subtitles)]
+    automator.run()
+    for path in subtitles:
+        assert sftpclient.isfile(remote_base_dir + '/movies/' + path)
 
 
 def create_torrent(id, size_left, download_dir):
