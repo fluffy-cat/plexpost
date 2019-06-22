@@ -209,6 +209,81 @@ def test_should_copy_subtitles(completed_torrents, automator, sftpclient, remote
         assert sftpclient.isfile(remote_base_dir + '/movies/' + path)
 
 
+def test_should_do_nothing_when_there_are_sidecar_subs_present(completed_torrents, automator, sftpclient,
+                                                               remote_base_dir, download_dir):
+    sidecar = 'dir/subtitles.srt'
+    main_video = 'dir/video.mkv'
+    other_sub = 'dir/sub/sub.sub'
+    files = [sidecar, main_video, other_sub]
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, files)]
+    automator.run()
+    assert sftpclient.isfile(remote_base_dir + '/movies/' + sidecar)
+    assert sftpclient.isfile(remote_base_dir + '/movies/' + other_sub)
+    assert not sftpclient.exists(remote_base_dir + '/movies/dir/sub.sub')
+
+
+def test_should_sidecar_vobsub_when_there_is_no_sidecar(completed_torrents, automator, sftpclient, remote_base_dir,
+                                                        download_dir):
+    main_video = 'dir/video.mkv'
+    vob = 'dir/sub/sub.idx'
+    sub = 'dir/sub/sub.sub'
+    other_sub = 'dir/sub/sub.srt'
+    files = [main_video, vob, sub, other_sub]
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, files)]
+    automator.run()
+    assert sftpclient.isfile(remote_base_dir + '/movies/' + vob)
+    assert sftpclient.isfile(remote_base_dir + '/movies/' + sub)
+    assert sftpclient.isfile(remote_base_dir + '/movies/' + other_sub)
+    assert sftpclient.isfile(remote_base_dir + '/movies/dir/sub.idx')
+    assert sftpclient.isfile(remote_base_dir + '/movies/dir/sub.sub')
+    assert not sftpclient.exists(remote_base_dir + '/movies/dir/sub.srt')
+
+
+def test_should_sidecar_english_subtitle_when_there_are_non_vobsub_files_and_no_sidecar(completed_torrents,
+                                                                                        automator,
+                                                                                        sftpclient,
+                                                                                        remote_base_dir,
+                                                                                        download_dir):
+    main_video = 'dir/video.mkv'
+    eng_sub = 'dir/sub/sub.en.srt'
+    other_sub = 'dir/sub/sub.ch.srt'
+    files = [main_video, eng_sub, other_sub]
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, files)]
+    automator.run()
+    assert sftpclient.isfile(remote_base_dir + '/movies/dir/sub.en.srt')
+    assert not sftpclient.exists(remote_base_dir + '/movies/dir/sub.ch.srt')
+
+
+def test_should_prefer_non_sdh_english_subtitle_when_there_are_multiple_subs(completed_torrents,
+                                                                             automator,
+                                                                             sftpclient,
+                                                                             remote_base_dir,
+                                                                             download_dir):
+    main_video = 'dir/video.mkv'
+    eng_sub = 'dir/sub/English.srt'
+    sdh_sub = 'dir/sub/English (SDH).srt'
+    files = [main_video, eng_sub, sdh_sub]
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, files)]
+    automator.run()
+    assert sftpclient.isfile(remote_base_dir + '/movies/dir/English.srt')
+    assert not sftpclient.exists(remote_base_dir + '/movies/dir/English (SDH).srt')
+
+
+def test_should_consider_only_complete_words_when_finding_language_in_subtitle_filename(completed_torrents,
+                                                                                        automator,
+                                                                                        sftpclient,
+                                                                                        remote_base_dir,
+                                                                                        download_dir):
+    main_video = 'dir/video.mkv'
+    unknown_sub = 'dir/sub/engineer.srt'
+    sdh_sub = 'dir/sub/English (sdh).srt'
+    files = [main_video, unknown_sub, sdh_sub]
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, files)]
+    automator.run()
+    assert sftpclient.isfile(remote_base_dir + '/movies/dir/English (sdh).srt')
+    assert not sftpclient.exists(remote_base_dir + '/movies/dir/engineer.srt')
+
+
 def create_torrent(id, size_left, download_dir):
     name = 'Torrent ' + str(id)
     fields = {'id': id, 'name': name, 'sizeWhenDone': 1, 'leftUntilDone': size_left, 'downloadDir': download_dir}

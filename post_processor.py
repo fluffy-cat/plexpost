@@ -53,10 +53,12 @@ class PostProcessor:
 
     def run(self):
         completed_torrents = self.get_completed_torrents()
-        torrents, mappings = self.media_processor.run(completed_torrents)
+        torrents = [t for t in completed_torrents if self.media_processor.filter(t)]
         print('Found ' + str(len(torrents)) + ' ' + self.media_processor.type + '(s)')
+        mappings = []
         for t in torrents:
             print('  ' + t.name)
+            mappings.extend(self.media_processor.map_files(t))
         if len(torrents) > 0:
             print('Waking htpc')
             self.htpc.turn_on()

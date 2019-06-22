@@ -3,19 +3,13 @@ class DefaultPostProcessor:
         self.download_dir_tag = conf['download_dir_tag']
         self.type = 'uncategorised download'
 
-    def run(self, torrents):
-        downloads = [t for t in torrents if self.is_uncategorised(t)]
-        mappings = self.forward_all_files(downloads)
-        return downloads, mappings
-
-    def is_uncategorised(self, torrent):
-        return torrent.downloadDir == self.download_dir_tag
-
-    def forward_all_files(self, torrents):
+    def map_files(self, download):
         mappings = []
-        for t in torrents:
-            for f in t.files().values():
-                filename = f['name']
-                rule = {'download_dir': t.downloadDir, 'filename': filename, 'dest': 'downloads/' + filename}
-                mappings.append(rule)
+        for f in download.files().values():
+            filename = f['name']
+            rule = {'download_dir': download.downloadDir, 'filename': filename, 'dest': 'downloads/' + filename}
+            mappings.append(rule)
         return mappings
+
+    def filter(self, torrent):
+        return torrent.downloadDir == self.download_dir_tag
