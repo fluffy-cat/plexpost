@@ -9,6 +9,7 @@ import htpc_switch
 import movies_flow
 import post_processor
 import sftp_factory
+import show_flow
 
 
 def main():
@@ -20,6 +21,7 @@ def main():
     scheduler = BlockingScheduler()
     create_schedule(scheduler, transmission, switch, sftp, default_flow.DefaultPostProcessor(conf['default_flow']))
     create_schedule(scheduler, transmission, switch, sftp, movies_flow.MoviePostProcessor(conf['movies_flow']))
+    create_schedule(scheduler, transmission, switch, sftp, show_flow.ShowPostProcessor(conf['tv_flow']))
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):

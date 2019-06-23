@@ -3,6 +3,8 @@ default_flow:
   download_dir_tag: /downloads
 movies_flow:
   download_dir_tag: /movies
+tv_flow:
+  download_dir_tag: /tv
 transmission:
   url: localhost
   port: 9091

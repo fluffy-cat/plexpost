@@ -7,8 +7,8 @@ import pytest
 from transmissionrpc import Torrent
 
 import htpc_switch
-import movies_flow
 import post_processor
+import show_flow
 from sftp_factory import SFTPFactory
 
 
@@ -26,7 +26,7 @@ def transmission():
 
 @pytest.fixture
 def download_dir():
-    return '/root'
+    return 'showname/season'
 
 
 @pytest.fixture
@@ -43,14 +43,14 @@ def automator(transmission, sftpserver, remote_base_dir, download_dir):
                                                      'username': 'user',
                                                      'key_path': '',
                                                      'remote_dir': remote_base_dir}),
-                                        movies_flow.MoviePostProcessor({'download_dir_tag': download_dir}))
+                                        show_flow.ShowPostProcessor({'download_dir_tag': download_dir}))
 
 
 @pytest.fixture
 def remote_base_dir(sftpserver):
     base = 'root'
     path = '/' + base
-    with sftpserver.serve_content({base: {'movies': {'.keep': ''}}}):
+    with sftpserver.serve_content({base: {'tv': {'.keep': ''}}}):
         yield path
 
 
@@ -62,7 +62,7 @@ def sftpclient(sftpserver):
         yield sftpclient
 
 
-def test_should_only_remove_movies_when_they_are_completed(automator, transmission, download_dir):
+def test_should_only_remove_shows_when_they_are_completed(automator, transmission, download_dir):
     torrents = [create_torrent(1, 0, download_dir),
                 create_torrent(2, 1, download_dir),
                 create_torrent(3, 0, download_dir)]
@@ -71,17 +71,18 @@ def test_should_only_remove_movies_when_they_are_completed(automator, transmissi
     transmission.remove_torrent.assert_has_calls([call(1), call(3)], any_order=True)
 
 
-@pytest.mark.parametrize('download_dir', ['/downloads/movies'])
-def test_should_only_process_downloads_when_they_are_in_the_movies_folder(automator, transmission,
+@pytest.mark.parametrize('download_dir', ['/downloads/tv'])
+def test_should_process_any_download_when_they_are_under_the_shows_folder(automator, transmission,
                                                                           download_dir):
-    torrents = [create_torrent(1, 0, '/downloads/movies'),
-                create_torrent(2, 0, '/downloads')]
+    torrents = [create_torrent(1, 0, '/downloads/tv/The Simpsons/1'),
+                create_torrent(2, 0, '/downloads'),
+                create_torrent(3, 0, '/downloads/tv/Another Show')]
     transmission.get_torrents.return_value = torrents
     automator.run()
-    transmission.remove_torrent.assert_called_once_with(1)
+    transmission.remove_torrent.assert_has_calls([call(1), call(3)], any_order=True)
 
 
-def test_should_wake_htpc_when_movie_is_complete(completed_torrents, automator, requests, download_dir):
+def test_should_wake_htpc_when_show_is_complete(completed_torrents, automator, requests, download_dir):
     torrents = [create_torrent(1, 0, download_dir)]
     completed_torrents.return_value = torrents
     automator.htpc = htpc_switch.HTPCSwitch('127.0.0.1', '123123', 'htpc')
@@ -91,14 +92,14 @@ def test_should_wake_htpc_when_movie_is_complete(completed_torrents, automator, 
                                      headers={'Authorization': 'Bearer 123123'})
 
 
-def test_should_not_wake_htpc_when_no_movies_complete(completed_torrents, automator, requests):
+def test_should_not_wake_htpc_when_no_shows_complete(completed_torrents, automator, requests):
     completed_torrents.return_value = []
     automator.run()
     requests.post.assert_not_called()
 
 
 @pytest.mark.parametrize('download_dir', ['tmp/cleanup_top_level_files_when_download_is_complete'])
-def test_should_cleanup_top_level_files_when_movie_is_complete(completed_torrents, automator, download_dir):
+def test_should_cleanup_top_level_files_when_show_is_complete(completed_torrents, automator, download_dir):
     top_level_file = 'top_level.avi'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [top_level_file])]
     automator.run()
@@ -107,7 +108,7 @@ def test_should_cleanup_top_level_files_when_movie_is_complete(completed_torrent
 
 
 @pytest.mark.parametrize('download_dir', ['tmp/cleanup_directory_when_download_is_complete'])
-def test_should_cleanup_directory_when_movie_is_complete(completed_torrents, automator, download_dir):
+def test_should_cleanup_directory_when_show_is_complete(completed_torrents, automator, download_dir):
     file1 = 'dir1/dir2/file.avi'
     file2 = 'dir1/dir2/dir3/file.avi'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [file1, file2])]
@@ -135,7 +136,7 @@ def test_should_copy_top_level_files_to_htpc(completed_torrents, automator, sftp
     single_file = 'single_file.avi'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [single_file])]
     automator.run()
-    assert sftpclient.isfile(remote_base_dir + '/movies/' + single_file)
+    assert sftpclient.isfile(remote_base_dir + '/tv/tmp/copy_top_level_files_to_htpc/' + single_file)
 
 
 @pytest.mark.parametrize('download_dir', ['tmp/copy_files_in_directories_to_htpc'])
@@ -144,29 +145,29 @@ def test_should_copy_files_in_directories_to_htpc(completed_torrents, automator,
     nested_file = 'dir1/dir2/nested_file.avi'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [nested_file])]
     automator.run()
-    assert sftpclient.isdir(remote_base_dir + '/movies/dir1/dir2')
-    assert sftpclient.isfile(remote_base_dir + '/movies/' + nested_file)
+    assert sftpclient.isdir(remote_base_dir + '/tv/tmp/copy_files_in_directories_to_htpc/dir1/dir2')
+    assert sftpclient.isfile(remote_base_dir + '/tv/tmp/copy_files_in_directories_to_htpc/' + nested_file)
 
 
 def test_should_copy_avi_video(completed_torrents, automator, sftpclient, remote_base_dir, download_dir):
     avi_file = 'dir/video.avi'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [avi_file])]
     automator.run()
-    assert sftpclient.isfile(remote_base_dir + '/movies/' + avi_file)
+    assert sftpclient.isfile(remote_base_dir + '/tv/showname/season/' + avi_file)
 
 
 def test_should_copy_mkv_video(completed_torrents, automator, sftpclient, remote_base_dir, download_dir):
     avi_file = 'dir/video.mkv'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [avi_file])]
     automator.run()
-    assert sftpclient.isfile(remote_base_dir + '/movies/' + avi_file)
+    assert sftpclient.isfile(remote_base_dir + '/tv/showname/season/' + avi_file)
 
 
 def test_should_copy_mp4_video(completed_torrents, automator, sftpclient, remote_base_dir, download_dir):
     avi_file = 'dir/video.mp4'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [avi_file])]
     automator.run()
-    assert sftpclient.isfile(remote_base_dir + '/movies/' + avi_file)
+    assert sftpclient.isfile(remote_base_dir + '/tv/showname/season/' + avi_file)
 
 
 def test_should_not_copy_garbage_files(completed_torrents, automator, sftpclient, remote_base_dir, download_dir):
@@ -174,8 +175,8 @@ def test_should_not_copy_garbage_files(completed_torrents, automator, sftpclient
     exec_file = 'dir/release.exe'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [info_file, exec_file])]
     automator.run()
-    assert not sftpclient.exists(remote_base_dir + '/movies/' + info_file)
-    assert not sftpclient.exists(remote_base_dir + '/movies/' + exec_file)
+    assert not sftpclient.exists(remote_base_dir + '/tv/showname/season/' + info_file)
+    assert not sftpclient.exists(remote_base_dir + '/tv/showname/season/' + exec_file)
 
 
 def test_should_copy_only_largest_video_file_when_multiple_are_present(completed_torrents, automator, sftpclient,
@@ -189,8 +190,8 @@ def test_should_copy_only_largest_video_file_when_multiple_are_present(completed
     tor.files.return_value = files
     completed_torrents.return_value = [tor]
     automator.run()
-    assert sftpclient.isfile(remote_base_dir + '/movies/' + main_video)
-    assert not sftpclient.exists(remote_base_dir + '/movies/' + sample_video)
+    assert sftpclient.isfile(remote_base_dir + '/tv/showname/season/' + main_video)
+    assert not sftpclient.exists(remote_base_dir + '/tv/showname/season/' + sample_video)
 
 
 def test_should_copy_subtitles(completed_torrents, automator, sftpclient, remote_base_dir, download_dir):
@@ -205,7 +206,7 @@ def test_should_copy_subtitles(completed_torrents, automator, sftpclient, remote
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, subtitles)]
     automator.run()
     for path in subtitles:
-        assert sftpclient.isfile(remote_base_dir + '/movies/' + path)
+        assert sftpclient.isfile(remote_base_dir + '/tv/showname/season/' + path)
 
 
 def test_should_do_nothing_when_there_are_sidecar_subs_present(completed_torrents, automator, sftpclient,
@@ -216,9 +217,9 @@ def test_should_do_nothing_when_there_are_sidecar_subs_present(completed_torrent
     files = [sidecar, main_video, other_sub]
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, files)]
     automator.run()
-    assert sftpclient.isfile(remote_base_dir + '/movies/' + sidecar)
-    assert sftpclient.isfile(remote_base_dir + '/movies/' + other_sub)
-    assert not sftpclient.exists(remote_base_dir + '/movies/dir/sub.sub')
+    assert sftpclient.isfile(remote_base_dir + '/tv/showname/season/' + sidecar)
+    assert sftpclient.isfile(remote_base_dir + '/tv/showname/season/' + other_sub)
+    assert not sftpclient.exists(remote_base_dir + '/tv/showname/season/dir/sub.sub')
 
 
 def test_should_sidecar_vobsub_when_there_is_no_sidecar(completed_torrents, automator, sftpclient, remote_base_dir,
@@ -230,12 +231,12 @@ def test_should_sidecar_vobsub_when_there_is_no_sidecar(completed_torrents, auto
     files = [main_video, vob, sub, other_sub]
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, files)]
     automator.run()
-    assert sftpclient.isfile(remote_base_dir + '/movies/' + vob)
-    assert sftpclient.isfile(remote_base_dir + '/movies/' + sub)
-    assert sftpclient.isfile(remote_base_dir + '/movies/' + other_sub)
-    assert sftpclient.isfile(remote_base_dir + '/movies/dir/sub.idx')
-    assert sftpclient.isfile(remote_base_dir + '/movies/dir/sub.sub')
-    assert not sftpclient.exists(remote_base_dir + '/movies/dir/sub.srt')
+    assert sftpclient.isfile(remote_base_dir + '/tv/showname/season/' + vob)
+    assert sftpclient.isfile(remote_base_dir + '/tv/showname/season/' + sub)
+    assert sftpclient.isfile(remote_base_dir + '/tv/showname/season/' + other_sub)
+    assert sftpclient.isfile(remote_base_dir + '/tv/showname/season/dir/sub.idx')
+    assert sftpclient.isfile(remote_base_dir + '/tv/showname/season/dir/sub.sub')
+    assert not sftpclient.exists(remote_base_dir + '/tv/showname/season/dir/sub.srt')
 
 
 def test_should_sidecar_english_subtitle_when_there_are_non_vobsub_files_and_no_sidecar(completed_torrents,
@@ -249,8 +250,8 @@ def test_should_sidecar_english_subtitle_when_there_are_non_vobsub_files_and_no_
     files = [main_video, eng_sub, other_sub]
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, files)]
     automator.run()
-    assert sftpclient.isfile(remote_base_dir + '/movies/dir/sub.en.srt')
-    assert not sftpclient.exists(remote_base_dir + '/movies/dir/sub.ch.srt')
+    assert sftpclient.isfile(remote_base_dir + '/tv/showname/season/dir/sub.en.srt')
+    assert not sftpclient.exists(remote_base_dir + '/tv/showname/season/dir/sub.ch.srt')
 
 
 def test_should_prefer_non_sdh_english_subtitle_when_there_are_multiple_subs(completed_torrents,
@@ -264,8 +265,8 @@ def test_should_prefer_non_sdh_english_subtitle_when_there_are_multiple_subs(com
     files = [main_video, eng_sub, sdh_sub]
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, files)]
     automator.run()
-    assert sftpclient.isfile(remote_base_dir + '/movies/dir/English.srt')
-    assert not sftpclient.exists(remote_base_dir + '/movies/dir/English (SDH).srt')
+    assert sftpclient.isfile(remote_base_dir + '/tv/showname/season/dir/English.srt')
+    assert not sftpclient.exists(remote_base_dir + '/tv/showname/season/dir/English (SDH).srt')
 
 
 def test_should_consider_only_complete_words_when_finding_language_in_subtitle_filename(completed_torrents,
@@ -279,8 +280,20 @@ def test_should_consider_only_complete_words_when_finding_language_in_subtitle_f
     files = [main_video, unknown_sub, sdh_sub]
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, files)]
     automator.run()
-    assert sftpclient.isfile(remote_base_dir + '/movies/dir/English (sdh).srt')
-    assert not sftpclient.exists(remote_base_dir + '/movies/dir/engineer.srt')
+    assert sftpclient.isfile(remote_base_dir + '/tv/showname/season/dir/English (sdh).srt')
+    assert not sftpclient.exists(remote_base_dir + '/tv/showname/season/dir/engineer.srt')
+
+
+@pytest.mark.parametrize('download_dir', ['/downloads/Show Name/2'])
+def test_should_put_in_show_name_season_subdirectory(completed_torrents,
+                                                     automator,
+                                                     sftpclient,
+                                                     remote_base_dir,
+                                                     download_dir):
+    video = 'show.mkv'
+    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [video])]
+    automator.run()
+    assert sftpclient.isfile(remote_base_dir + '/tv/Show Name/2/' + video)
 
 
 def create_torrent(id, size_left, download_dir):
