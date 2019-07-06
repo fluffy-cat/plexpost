@@ -17,6 +17,10 @@ jobs:
             . venv/bin/activate
             mkdir test-reports
             pytest --junitxml=test-reports/junit.xml
+      - store_test_results:
+          path: test-reports
+      - store_artifacts:
+          path: test-reports
   build:
     environment:
       IMAGE_NAMESPACE: fluffycat
