@@ -1,0 +1,32 @@
+version: 2
+jobs:
+  build:
+    environment:
+      IMAGE_NAMESPACE: fluffycat
+      IMAGE_NAME: plexpost
+      IMAGE_TAG: 1.0.0
+    machine:
+      image: circleci/classic:201808-01
+      docker_layer_caching: true
+    steps:
+      - checkout
+      - run:
+          name: Configure x86 agent for building arm images
+          command: |
+            sudo sh -c 'echo '\''{"experimental":true}'\'' > /etc/docker/daemon.json'
+            sudo systemctl restart docker
+            mkdir build
+            wget https://github.com/multiarch/qemu-user-static/releases/download/v4.0.0-5/qemu-arm-static.tar.gz -O - | tar -xzC build
+            chmod +x build/qemu-arm-static
+            docker run --rm --privileged multiarch/qemu-user-static:register --reset
+      - run:
+          name: Determine image tag
+          command: |
+            echo 'export TAG=${IMAGE_TAG}-${CIRCLE_BUILD_NUM}' >> $BASH_ENV
+      - run:
+          name: Build and push Docker image
+          command: |
+            docker build --platform armhf --pull -t $IMAGE_NAMESPACE/$IMAGE_NAME:$TAG -t $IMAGE_NAMESPACE/$IMAGE_NAME:latest .
+            echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
+            docker push $IMAGE_NAMESPACE/$IMAGE_NAME:$TAG
+            docker push $IMAGE_NAMESPACE/$IMAGE_NAME:latest
