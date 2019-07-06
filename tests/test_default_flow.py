@@ -26,7 +26,7 @@ def transmission():
 
 @pytest.fixture
 def download_dir():
-    return '/'
+    return 'tmp'
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def automator(transmission, sftpserver, remote_base_dir, download_dir):
                                         SFTPFactory({'url': sftpserver.host,
                                                      'port': sftpserver.port,
                                                      'username': 'user',
-                                                     'key_path': '',
+                                                     'password': '',
                                                      'remote_dir': remote_base_dir}),
                                         default_flow.DefaultPostProcessor({'download_dir_tag': download_dir}))
 
@@ -58,7 +58,8 @@ def remote_base_dir(sftpserver):
 def sftpclient(sftpserver):
     cnopts = pysftp.CnOpts()
     cnopts.hostkeys = None
-    with pysftp.Connection(sftpserver.host, port=sftpserver.port, username='user', cnopts=cnopts) as sftpclient:
+    with pysftp.Connection(sftpserver.host, port=sftpserver.port, username='user', password='',
+                           cnopts=cnopts) as sftpclient:
         yield sftpclient
 
 
@@ -71,11 +72,11 @@ def test_should_only_remove_torrents_when_they_are_completed(automator, transmis
     transmission.remove_torrent.assert_has_calls([call(1), call(3)], any_order=True)
 
 
-@pytest.mark.parametrize('download_dir', ['/downloads'])
+@pytest.mark.parametrize('download_dir', ['tmp/downloads'])
 def test_should_only_process_uncategorised_torrents_when_they_are_in_the_downloads_folder(automator, transmission,
                                                                                           download_dir):
-    torrents = [create_torrent(1, 0, '/downloads/movies'),
-                create_torrent(2, 0, '/downloads')]
+    torrents = [create_torrent(1, 0, 'tmp/downloads/movies'),
+                create_torrent(2, 0, 'tmp/downloads')]
     transmission.get_torrents.return_value = torrents
     automator.download_dir = '/downloads'
     automator.run()

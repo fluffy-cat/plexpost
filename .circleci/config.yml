@@ -1,5 +1,22 @@
 version: 2
 jobs:
+  test:
+    docker:
+      image: circleci/python:3.7.3
+    steps:
+      - checkout
+      - run:
+          name: Setup VirtualEnv
+          command: |
+            virtualenv venv
+            . venv/bin/activate
+            pip install --no-cache-dir -r requirements.lock
+      - run:
+          name: Run tests
+          command: |
+            . venv/bin/activate
+            mkdir test-reports
+            pytest --junitxml=test-reports/junit.xml
   build:
     environment:
       IMAGE_NAMESPACE: fluffycat
@@ -30,3 +47,11 @@ jobs:
             echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
             docker push $IMAGE_NAMESPACE/$IMAGE_NAME:$TAG
             docker push $IMAGE_NAMESPACE/$IMAGE_NAME:latest
+workflows:
+  version: 2
+  test-then-build:
+    jobs:
+      - test
+      - build:
+          requires:
+            - test

@@ -9,13 +9,14 @@ class SFTPFactory:
         self.url = config['url']
         self.port = config['port']
         self.username = config['username']
-        self.private_key_path = config['key_path']
+        self.password = config.get('password')
+        self.private_key_path = config.get('key_path')
         self.remote_dir = config['remote_dir']
 
     def connect(self):
         cnopts = pysftp.CnOpts()
         cnopts.hostkeys = None
-        connection = pysftp.Connection(self.url, port=self.port, username=self.username,
+        connection = pysftp.Connection(self.url, port=self.port, username=self.username, password=self.password,
                                        private_key=self.private_key_path, cnopts=cnopts)
         connection.chdir(self.remote_dir)
         return connection

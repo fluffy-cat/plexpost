@@ -26,7 +26,7 @@ def transmission():
 
 @pytest.fixture
 def download_dir():
-    return 'showname/season'
+    return 'tmp/showname/season'
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def automator(transmission, sftpserver, remote_base_dir, download_dir):
                                         SFTPFactory({'url': sftpserver.host,
                                                      'port': sftpserver.port,
                                                      'username': 'user',
-                                                     'key_path': '',
+                                                     'password': '',
                                                      'remote_dir': remote_base_dir}),
                                         show_flow.ShowPostProcessor({'download_dir_tag': download_dir}))
 
@@ -58,7 +58,8 @@ def remote_base_dir(sftpserver):
 def sftpclient(sftpserver):
     cnopts = pysftp.CnOpts()
     cnopts.hostkeys = None
-    with pysftp.Connection(sftpserver.host, port=sftpserver.port, username='user', cnopts=cnopts) as sftpclient:
+    with pysftp.Connection(sftpserver.host, port=sftpserver.port, username='user', password='',
+                           cnopts=cnopts) as sftpclient:
         yield sftpclient
 
 
@@ -71,12 +72,12 @@ def test_should_only_remove_shows_when_they_are_completed(automator, transmissio
     transmission.remove_torrent.assert_has_calls([call(1), call(3)], any_order=True)
 
 
-@pytest.mark.parametrize('download_dir', ['/downloads/tv'])
+@pytest.mark.parametrize('download_dir', ['tmp/downloads/tv'])
 def test_should_process_any_download_when_they_are_under_the_shows_folder(automator, transmission,
                                                                           download_dir):
-    torrents = [create_torrent(1, 0, '/downloads/tv/The Simpsons/1'),
-                create_torrent(2, 0, '/downloads'),
-                create_torrent(3, 0, '/downloads/tv/Another Show')]
+    torrents = [create_torrent(1, 0, 'tmp/downloads/tv/The Simpsons/1'),
+                create_torrent(2, 0, 'tmp/downloads'),
+                create_torrent(3, 0, 'tmp/downloads/tv/Another Show')]
     transmission.get_torrents.return_value = torrents
     automator.run()
     transmission.remove_torrent.assert_has_calls([call(1), call(3)], any_order=True)
@@ -284,7 +285,7 @@ def test_should_consider_only_complete_words_when_finding_language_in_subtitle_f
     assert not sftpclient.exists(remote_base_dir + '/tv/showname/season/dir/engineer.srt')
 
 
-@pytest.mark.parametrize('download_dir', ['/downloads/Show Name/2'])
+@pytest.mark.parametrize('download_dir', ['tmp/downloads/Show Name/2'])
 def test_should_put_in_show_name_season_subdirectory(completed_torrents,
                                                      automator,
                                                      sftpclient,
