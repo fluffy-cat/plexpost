@@ -21,12 +21,11 @@ def automator(transmission, sftpserver, remote_base_dir, download_dir):
 
 
 @pytest.mark.parametrize('download_dir', ['tmp/downloads'])
-def test_should_only_process_uncategorised_torrents_when_they_are_in_the_downloads_folder(automator, transmission,
-                                                                                          download_dir):
+def test_should_only_process_uncategorised_torrents_that_are_in_the_downloads_folder(automator, transmission,
+                                                                                     download_dir):
     torrents = [create_torrent(1, 0, 'tmp/downloads/movies'),
                 create_torrent(2, 0, 'tmp/downloads')]
     transmission.get_torrents.return_value = torrents
-    automator.download_dir = '/downloads'
     automator.run()
     transmission.remove_torrent.assert_called_once_with(2)
 

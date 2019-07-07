@@ -22,18 +22,18 @@ def automator(transmission, sftpserver, remote_base_dir, download_dir):
                                         show_flow.ShowPostProcessor({'download_dir_tag': download_dir}))
 
 
-@pytest.mark.parametrize('download_dir', ['tmp/downloads/tv'])
+@pytest.mark.parametrize('download_dir', ['tmp/tv'])
 def test_should_process_any_download_when_they_are_under_the_shows_folder(automator, transmission,
                                                                           download_dir):
-    torrents = [create_torrent(1, 0, 'tmp/downloads/tv/The Simpsons/1'),
-                create_torrent(2, 0, 'tmp/downloads'),
-                create_torrent(3, 0, 'tmp/downloads/tv/Another Show')]
+    torrents = [create_torrent(1, 0, 'tmp/tv/The Simpsons/1'),
+                create_torrent(2, 0, 'tmp'),
+                create_torrent(3, 0, 'tmp/tv/Another Show')]
     transmission.get_torrents.return_value = torrents
     automator.run()
     transmission.remove_torrent.assert_has_calls([call(1), call(3)], any_order=True)
 
 
-@pytest.mark.parametrize('download_dir', ['tmp/downloads/Show Name/2'])
+@pytest.mark.parametrize('download_dir', ['tmp/Show Name/2'])
 def test_should_put_in_show_name_season_subdirectory(completed_torrents,
                                                      automator,
                                                      sftpclient,

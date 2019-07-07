@@ -20,7 +20,7 @@ def transmission():
 
 @pytest.fixture
 def download_dir():
-    return 'tmp/showname/season'
+    return 'tmp'
 
 
 @pytest.fixture
@@ -32,7 +32,7 @@ def completed_torrents(transmission):
 def remote_base_dir(sftpserver):
     base = 'root'
     path = '/' + base
-    with sftpserver.serve_content({base: {'tv': {'.keep': ''}}}):
+    with sftpserver.serve_content({base: {'.keep': ''}}):
         yield path
 
 
