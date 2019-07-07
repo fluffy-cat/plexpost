@@ -4,12 +4,7 @@ import hiyapyco
 import transmissionrpc
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-import default_flow
-import htpc_switch
-import movies_flow
-import post_processor
-import sftp_factory
-import show_flow
+from plexpost import post_processor, movies_flow, htpc_switch, sftp_factory, default_flow, show_flow
 
 
 def main():

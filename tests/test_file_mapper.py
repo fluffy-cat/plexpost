@@ -4,9 +4,8 @@ from unittest.mock import Mock
 
 import pytest
 
-import movies_flow
-import post_processor
-from sftp_factory import SFTPFactory
+from plexpost import post_processor, movies_flow
+from plexpost.sftp_factory import SFTPFactory
 
 
 @pytest.fixture

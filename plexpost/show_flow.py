@@ -1,4 +1,4 @@
-import file_mapper
+from plexpost import file_mapper
 
 
 def parse_show_name_from_download_dir(show):

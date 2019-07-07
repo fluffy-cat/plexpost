@@ -5,9 +5,8 @@ from unittest.mock import Mock, call
 import pytest
 from transmissionrpc import Torrent
 
-import post_processor
-import show_flow
-from sftp_factory import SFTPFactory
+from plexpost import post_processor, show_flow
+from plexpost.sftp_factory import SFTPFactory
 
 
 @pytest.fixture

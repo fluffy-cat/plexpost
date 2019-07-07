@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pysftp
 import pytest
 
-import htpc_switch
+from plexpost import htpc_switch
 
 
 @pytest.fixture(autouse=True)

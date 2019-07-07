@@ -1,4 +1,4 @@
-import file_mapper
+from plexpost import file_mapper
 
 
 class MoviePostProcessor:
