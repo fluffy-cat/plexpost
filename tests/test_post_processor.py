@@ -2,7 +2,6 @@ import errno
 import os
 from unittest.mock import Mock, call
 
-import pysftp
 import pytest
 from transmissionrpc import Torrent
 
@@ -10,36 +9,6 @@ import default_flow
 import htpc_switch
 import post_processor
 from sftp_factory import SFTPFactory
-
-
-@pytest.fixture(autouse=True)
-def requests(monkeypatch):
-    req = Mock()
-    monkeypatch.setattr(htpc_switch, 'requests', req)
-    return req
-
-
-@pytest.fixture
-def download_dir():
-    return 'tmp'
-
-
-@pytest.fixture
-def transmission():
-    return Mock()
-
-
-@pytest.fixture
-def completed_torrents(transmission):
-    return transmission.get_torrents
-
-
-@pytest.fixture
-def remote_base_dir(sftpserver):
-    base = 'root'
-    path = '/' + base
-    with sftpserver.serve_content({base: {'downloads': {'.keep': ''}}}):
-        yield path
 
 
 @pytest.fixture
@@ -52,15 +21,6 @@ def automator(transmission, sftpserver, remote_base_dir, download_dir):
                                                      'password': '',
                                                      'remote_dir': remote_base_dir}),
                                         default_flow.DefaultPostProcessor({'download_dir_tag': download_dir}))
-
-
-@pytest.fixture
-def sftpclient(sftpserver):
-    cnopts = pysftp.CnOpts()
-    cnopts.hostkeys = None
-    with pysftp.Connection(sftpserver.host, port=sftpserver.port, username='user', password='',
-                           cnopts=cnopts) as sftpclient:
-        yield sftpclient
 
 
 def test_should_only_remove_torrents_when_they_are_completed(automator, transmission, download_dir):

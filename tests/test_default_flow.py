@@ -4,26 +4,8 @@ import pytest
 from transmissionrpc import Torrent
 
 import default_flow
-import htpc_switch
 import post_processor
 from sftp_factory import SFTPFactory
-
-
-@pytest.fixture(autouse=True)
-def requests(monkeypatch):
-    req = Mock()
-    monkeypatch.setattr(htpc_switch, 'requests', req)
-    return req
-
-
-@pytest.fixture
-def transmission():
-    return Mock()
-
-
-@pytest.fixture
-def download_dir():
-    return 'tmp'
 
 
 @pytest.fixture
@@ -36,14 +18,6 @@ def automator(transmission, sftpserver, remote_base_dir, download_dir):
                                                      'password': '',
                                                      'remote_dir': remote_base_dir}),
                                         default_flow.DefaultPostProcessor({'download_dir_tag': download_dir}))
-
-
-@pytest.fixture
-def remote_base_dir(sftpserver):
-    base = 'root'
-    path = '/' + base
-    with sftpserver.serve_content({base: {'downloads': {'.keep': ''}}}):
-        yield path
 
 
 @pytest.mark.parametrize('download_dir', ['tmp/downloads'])
