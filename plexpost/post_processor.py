@@ -23,7 +23,9 @@ def list_unique_directories_depth_first(torrents):
 def cleanup_files(torrents):
     for t in torrents:
         for f in t.files().values():
-            os.remove(t.downloadDir + '/' + f['name'])
+            file = t.downloadDir + '/' + f['name']
+            if os.path.isfile(file):
+                os.remove(file)
 
 
 def cleanup_empty_dirs(torrents):
@@ -79,11 +81,16 @@ class PostProcessor:
             return
         with self.sftp_factory.await_connection() as sftp:
             for rule in mappings:
+                # Skip if file is missing
                 file = rule['filename']
+                src_file = rule['download_dir'] + '/' + file
+                if not os.path.isfile(src_file):
+                    continue
+
                 dest_file = rule['dest']
                 print('Transferring ' + file + ' to remote')
                 remote_dir = os.path.dirname(dest_file)
                 if len(remote_dir) > 0:
                     sftp.makedirs(remote_dir)
-                sftp.put(rule['download_dir'] + '/' + file, dest_file)
+                sftp.put(src_file, dest_file)
                 print('Completed transferring ' + file)

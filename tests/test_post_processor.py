@@ -92,10 +92,25 @@ def test_should_copy_files_in_directories_to_htpc(completed_torrents, automator,
                                                   download_dir):
     nested_file = 'dir1/dir2/nested_file'
     completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [nested_file])]
-    completed_torrents.return_value = [completed_torrent_with_data_files(download_dir, [nested_file])]
     automator.run()
     assert sftpclient.isdir(remote_base_dir + '/downloads/dir1/dir2')
     assert sftpclient.isfile(remote_base_dir + '/downloads/' + nested_file)
+
+
+@pytest.mark.parametrize('download_dir', ['tmp/ignore_missing_files_in_torrent'])
+def test_should_ignore_missing_files_in_torrent(completed_torrents, automator, download_dir):
+    tor = Mock()
+    tor.progress = 100
+    tor.id = 1
+    tor.downloadDir = download_dir
+    tor.name = 'Mock 1'
+    data_files = {'0': {'selected': True, 'priority': 'normal', 'size': 1, 'name': download_dir + '/dir/missing_file',
+                        'completed': 1}}
+    tor.files.return_value = data_files
+    completed_torrents.return_value = [tor]
+    automator.run()
+    assert not os.path.lexists(download_dir + '/dir/missing_file')
+    assert not os.path.lexists(download_dir + '/dir')
 
 
 def create_torrent(id, size_left, download_dir):
