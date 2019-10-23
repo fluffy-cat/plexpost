@@ -5,7 +5,7 @@ Some come with subtitles at the same level as the main video file.
 Others place subtitles in a sub directory.
 However, Plex only recognises subtitle files placed in the same directory as the main video file.
 
-For Plex to pick up subtitles in torrented videos, these subtitles must be reorganised into a canonical form.
+For Plex to pick up subtitles in torrented videos, these subtitles must be reorganised into a canonical form that is understood by Plex.
 
 ## Nomenclature
 Sidecar(adjective) subtitle: A subtitle that has been placed alongside a video file. Plex can index a video along with a sidecar subtitle
@@ -21,7 +21,7 @@ When reorganising subtitles, Plexpost looks at a couple of indicators. These ind
 
 If a video already has a sidecar subtitle, no further action is taken.
 
-Otherwise, Plexpost looks for a vobsub file. If it is present, a copy of the idx+sub file is placed alongside the main video file.
+Otherwise, Plexpost looks for a vobsub file recursively from the base directory. If a vobsub file is found, a copy of the idx+sub file is placed alongside the main video file.
 
 Finally, if there are no vobsubs, the highest ranked sub will be sidecar-ed.
 
@@ -39,13 +39,13 @@ When new sidecar files are copied, the original will always be left intact. No s
 Do nothing
 
 ## Scenario 1
-- Video has any type of sidecar subtitles
-- Other subtitles may be present
+- Video has a sidecar subtitle
+- Other subtitles may be present in sub directory
 
 Do nothing
 
 ## Scenario 2
-- Video has a vobsub subtitle
+- Video has a vobsub subtitle in sub directory
 - There are no sidecar subtitles
 - There is one or more subtitles in sub directory
 
