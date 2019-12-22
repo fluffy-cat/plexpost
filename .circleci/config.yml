@@ -28,7 +28,6 @@ jobs:
       IMAGE_TAG: 1.0.2
     machine:
       image: circleci/classic:201808-01
-      docker_layer_caching: true
     steps:
       - checkout
       - run:
