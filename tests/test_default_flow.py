@@ -9,13 +9,11 @@ from plexpost.sftp_factory import SFTPFactory
 
 @pytest.fixture
 def automator(transmission, sftpserver, remote_base_dir, download_dir):
-    return post_processor.PostProcessor(transmission,
-                                        Mock(),
-                                        SFTPFactory({'url': sftpserver.host,
-                                                     'port': sftpserver.port,
-                                                     'username': 'user',
-                                                     'password': '',
-                                                     'remote_dir': remote_base_dir}),
+    return post_processor.PostProcessor(transmission, Mock(), Mock(), SFTPFactory({'url': sftpserver.host,
+                                                                                   'port': sftpserver.port,
+                                                                                   'username': 'user',
+                                                                                   'password': '',
+                                                                                   'remote_dir': remote_base_dir}),
                                         default_flow.DefaultPostProcessor({'download_dir_tag': download_dir}))
 
 

@@ -43,15 +43,12 @@ def cleanup_torrent_data(torrents):
 
 
 class PostProcessor:
-    def __init__(self,
-                 transmission,
-                 htpc_switch,
-                 sftp_factory,
-                 media_processor):
+    def __init__(self, transmission, htpc_switch, ombi, sftp_factory, media_processor):
         self.transmission = transmission
         self.htpc = htpc_switch
         self.sftp_factory = sftp_factory
         self.media_processor = media_processor
+        self.ombi = ombi
 
     def run(self):
         completed_torrents = self.get_completed_torrents()
@@ -65,6 +62,8 @@ class PostProcessor:
             print('Waking htpc')
             self.htpc.turn_on()
         self.transfer_to_htpc(mappings)
+        if len(torrents) > 0:
+            self.ombi.scan_plex()
         cleanup_torrent_data(torrents)
         self.remove_torrents_from_client(torrents)
 

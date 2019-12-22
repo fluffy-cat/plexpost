@@ -25,7 +25,7 @@ jobs:
     environment:
       IMAGE_NAMESPACE: fluffycat
       IMAGE_NAME: plexpost
-      IMAGE_TAG: 1.0.1
+      IMAGE_TAG: 1.0.2
     machine:
       image: circleci/classic:201808-01
       docker_layer_caching: true

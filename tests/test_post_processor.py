@@ -5,19 +5,17 @@ from unittest.mock import Mock, call
 import pytest
 from transmissionrpc import Torrent
 
-from plexpost import post_processor, htpc_switch, default_flow
+from plexpost import post_processor, htpc_switch, default_flow, ombi
 from plexpost.sftp_factory import SFTPFactory
 
 
 @pytest.fixture
 def automator(transmission, sftpserver, remote_base_dir, download_dir):
-    return post_processor.PostProcessor(transmission,
-                                        Mock(),
-                                        SFTPFactory({'url': sftpserver.host,
-                                                     'port': sftpserver.port,
-                                                     'username': 'user',
-                                                     'password': '',
-                                                     'remote_dir': remote_base_dir}),
+    return post_processor.PostProcessor(transmission, Mock(), Mock(), SFTPFactory({'url': sftpserver.host,
+                                                                                   'port': sftpserver.port,
+                                                                                   'username': 'user',
+                                                                                   'password': '',
+                                                                                   'remote_dir': remote_base_dir}),
                                         default_flow.DefaultPostProcessor({'download_dir_tag': download_dir}))
 
 
@@ -38,6 +36,16 @@ def test_should_wake_htpc_when_torrent_is_complete(completed_torrents, automator
     requests.post.assert_called_with('http://127.0.0.1:8123/api/services/switch/turn_on',
                                      json={'entity_id': 'switch.htpc'},
                                      headers={'Authorization': 'Bearer 123123'})
+
+
+def test_should_make_ombi_scan_plex_library_when_torrent_is_complete(completed_torrents, automator, requests,
+                                                                     download_dir):
+    torrents = [create_torrent(1, 0, download_dir)]
+    completed_torrents.return_value = torrents
+    automator.ombi = ombi.Ombi('127.0.0.1', '123123')
+    automator.run()
+    requests.post.assert_called_with('http://127.0.0.1:3579/api/v1/Job/plexcontentcacher',
+                                     headers={'ApiKey': '123123'})
 
 
 def test_should_not_wake_htpc_when_no_torrents_complete(completed_torrents, automator, requests):

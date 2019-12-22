@@ -3,13 +3,14 @@ from unittest.mock import Mock
 import pysftp
 import pytest
 
-from plexpost import htpc_switch
+from plexpost import htpc_switch, ombi
 
 
 @pytest.fixture(autouse=True)
 def requests(monkeypatch):
     req = Mock()
     monkeypatch.setattr(htpc_switch, 'requests', req)
+    monkeypatch.setattr(ombi, 'requests', req)
     return req
 
 
