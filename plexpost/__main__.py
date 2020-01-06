@@ -4,7 +4,7 @@ import hiyapyco
 import transmissionrpc
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from plexpost import post_processor, movies_flow, htpc_switch, sftp_factory, default_flow, show_flow, ombi
+from plexpost import post_processor, movies_flow, htpc_switch, sftp_factory, default_flow, show_flow
 
 
 def main():
@@ -13,29 +13,23 @@ def main():
     transmission = create_transmission(conf['transmission'])
     sftp = sftp_factory.SFTPFactory(conf['sftp'])
     switch = create_htpc_switch(conf['home_assistant'])
-    ombi = create_ombi(conf['ombi'])
     scheduler = BlockingScheduler()
-    create_schedule(scheduler, transmission, switch, ombi, sftp,
-                    default_flow.DefaultPostProcessor(conf['default_flow']))
-    create_schedule(scheduler, transmission, switch, ombi, sftp, movies_flow.MoviePostProcessor(conf['movies_flow']))
-    create_schedule(scheduler, transmission, switch, ombi, sftp, show_flow.ShowPostProcessor(conf['tv_flow']))
+    create_schedule(scheduler, transmission, switch, sftp, default_flow.DefaultPostProcessor(conf['default_flow']))
+    create_schedule(scheduler, transmission, switch, sftp, movies_flow.MoviePostProcessor(conf['movies_flow']))
+    create_schedule(scheduler, transmission, switch, sftp, show_flow.ShowPostProcessor(conf['tv_flow']))
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
         pass
 
 
-def create_schedule(scheduler, transmission, htpc_switch, ombi, sftp, plugin):
-    proc = post_processor.PostProcessor(transmission, htpc_switch, ombi, sftp, plugin)
+def create_schedule(scheduler, transmission, htpc_switch, sftp, plugin):
+    proc = post_processor.PostProcessor(transmission, htpc_switch, sftp, plugin)
     scheduler.add_job(proc.run, 'interval', minutes=1)
 
 
 def create_htpc_switch(conf):
     return htpc_switch.HTPCSwitch(conf['url'], conf['token'], conf['htpc_switch'])
-
-
-def create_ombi(conf):
-    return ombi.Ombi(conf['url'], conf['token'])
 
 
 def create_transmission(conf):

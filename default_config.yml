@@ -20,6 +20,3 @@ home_assistant:
   url: localhost
   token: ''
   htpc_switch: plex_node
-ombi:
-  url: localhost
-  token: ''
