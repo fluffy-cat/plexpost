@@ -14,9 +14,12 @@ def main():
     sftp = sftp_factory.SFTPFactory(conf['sftp'])
     switch = create_htpc_switch(conf['home_assistant'])
     scheduler = BlockingScheduler()
-    create_schedule(scheduler, transmission, switch, sftp, default_flow.DefaultPostProcessor(conf['default_flow']))
-    create_schedule(scheduler, transmission, switch, sftp, movies_flow.MoviePostProcessor(conf['movies_flow']))
-    create_schedule(scheduler, transmission, switch, sftp, show_flow.ShowPostProcessor(conf['tv_flow']))
+    if 'default_flow' in conf:
+        create_schedule(scheduler, transmission, switch, sftp, default_flow.DefaultPostProcessor(conf['default_flow']))
+    if 'movies_flow' in conf:
+        create_schedule(scheduler, transmission, switch, sftp, movies_flow.MoviePostProcessor(conf['movies_flow']))
+    if 'tv_flow' in conf:
+        create_schedule(scheduler, transmission, switch, sftp, show_flow.ShowPostProcessor(conf['tv_flow']))
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
