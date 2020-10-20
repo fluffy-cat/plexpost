@@ -2,21 +2,14 @@ version: 2
 jobs:
   test:
     docker:
-      - image: circleci/python:3.7.3
+      - image: circleci/python:3.6.9
     steps:
       - checkout
       - run:
-          name: Setup VirtualEnv
-          command: |
-            virtualenv venv
-            . venv/bin/activate
-            pip install --no-cache-dir -r requirements.lock
-      - run:
           name: Run tests
           command: |
-            . venv/bin/activate
-            mkdir -p test-reports/pytest
-            python3 -m pytest --junitxml=test-reports/pytest/junit.xml
+            pipenv install --deploy --ignore-pipfile
+            pipenv run python -m pytest --junitxml=test-reports/pytest/junit.xml
       - store_test_results:
           path: test-reports
       - store_artifacts:

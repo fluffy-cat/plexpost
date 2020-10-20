@@ -1,14 +1,16 @@
-FROM python:3.7.3-alpine3.10
+FROM python:3.6.9-alpine3.10
 
 COPY build/qemu-arm-static /usr/bin
 
 WORKDIR /app
 
 # Build requirements
-COPY requirements.lock ./
-RUN apk add --update --no-cache --virtual .build-deps build-base python3-dev libffi-dev openssl-dev || true && \
-  pip install --no-cache-dir -r requirements.lock && \
+COPY Pipfile Pipfile.lock ./
+RUN pip install pipenv && \
+  apk add --update --no-cache --virtual .build-deps build-base python3-dev libffi-dev openssl-dev || true && \
+  pipenv install --system --deploy --ignore-pipfile && \
   apk del .build-deps && \
+  pip uninstall pipenv -y && \
   apk add --no-cache tzdata
 
 COPY plexpost plexpost
