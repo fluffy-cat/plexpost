@@ -1,3 +1,5 @@
 tmp/
 venv/
 .idea/
+tests/
+.pytest_cache/

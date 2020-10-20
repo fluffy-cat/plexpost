@@ -1,8 +1,0 @@
-transmissionrpc
-requests
-pysftp
-HiYaPyCo
-apscheduler
-pytest
-pytest-sftpserver
-mockito
