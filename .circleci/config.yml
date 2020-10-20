@@ -29,7 +29,7 @@ jobs:
             sudo sh -c 'echo '\''{"experimental":true}'\'' > /etc/docker/daemon.json'
             sudo systemctl restart docker
             mkdir build
-            wget https://github.com/multiarch/qemu-user-static/releases/download/v4.0.0-5/qemu-arm-static.tar.gz -O - | tar -xzC build
+            wget https://github.com/multiarch/qemu-user-static/releases/download/v4.2.0-7/qemu-arm-static.tar.gz -O - | tar -xzC build
             chmod +x build/qemu-arm-static
             docker run --rm --privileged multiarch/qemu-user-static:register --reset
       - run:
