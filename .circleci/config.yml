@@ -38,7 +38,7 @@ jobs:
             echo 'export TAG=${IMAGE_TAG}-${CIRCLE_BUILD_NUM}' >> $BASH_ENV
       - run:
           name: Build and push Docker image
-          no_output_timeout: 30m
+          no_output_timeout: 45m
           command: |
             docker build --platform armhf --pull -t $IMAGE_NAMESPACE/$IMAGE_NAME:$TAG -t $IMAGE_NAMESPACE/$IMAGE_NAME:latest .
             echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
